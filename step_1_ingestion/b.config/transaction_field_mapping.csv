@@ -1,0 +1,57 @@
+﻿Category,Field Name,Description,NS Open POs,NS Receipts,Epicor Open POs,Epicor Receipts,Notes
+Identifiers,source_system,Identifies which ERP system the data originated from,Hardcode 'NETSUITE',Hardcode 'NETSUITE',Hardcode 'EPICOR',Hardcode 'EPICOR',Required for union of data
+Identifiers,transaction_type,Identifies whether record is open order or receipt,Hardcode 'OPEN_ORDER',Hardcode 'RECEIPT',Hardcode 'OPEN_ORDER',Hardcode 'RECEIPT',Required for combined table
+Identifiers,po_number,Purchase order number,PO Number,Maximum of PO Number,PO Number,PO Number Header,Primary PO identifier
+Identifiers,po_line,Line number on the purchase order,PO Line,Maximum of PO Line ID,PO Line,PO Line,
+Identifiers,po_release_num,Release number within a PO line (Epicor only),NULL,NULL,Release Number,Release Line,NetSuite doesn't have release concept - default to 1 or NULL
+Identifiers,receipt_number,Receipt/packing slip document number,NULL,Receipt Number,NULL,Packing Slip,Only applicable to receipt transactions
+Identifiers,receipt_line,Line number on the receipt document,NULL,Receipt Line ID,NULL,Pack Line,Only applicable to receipt transactions
+Organization,subsidiary_company,Company or subsidiary code,Maximum of Subsidiary,Maximum of Subsidiary,Company,Company,Top-level org identifier
+Organization,department,Department or cost center,Maximum of Department,NULL,NULL,NULL,NetSuite Open POs only
+Organization,location_warehouse,Warehouse or location for inventory,Maximum of Location,Maximum of Location,Warehouse ID,Warehouse ID,
+Organization,plant_site,Manufacturing plant/site (Epicor only),NULL,NULL,NULL,Site,Epicor Receipts only
+People,created_by,User who created the transaction,Maximum of Created By,Maximum of Created By,PurAgent Name,Receiving Person,Different concepts: buyer vs creator vs receiver
+People,buyer_id,Buyer/purchasing agent ID,NULL,NULL,PurAgent Name,Buyer ID,Epicor Open POs + Receipts
+Status,po_status,Status of the purchase order,Maximum of PO Status,Maximum of PO Status,Derive from Open flag,Release Status,
+Status,is_open_order,Flag indicating if PO header is open,Derive from PO Status,NULL,Open,NULL,Boolean
+Status,is_open_release,Flag indicating if release is open (Epicor),NULL,NULL,NULL,Open Release,Epicor Receipts only
+Status,is_confirmed,Vendor confirmation status,NULL,NULL,PO Confirmed Status,Confirmed,Epicor only
+Status,bill_variance_status,Invoice variance status on receipt,NULL,Maximum of Bill Variance Status,NULL,NULL,NetSuite Receipts only
+Dates,order_date,Date the PO was created,Maximum of Date,Maximum of PO Date,Order Date,Order Date,
+Dates,due_date,Due date for delivery,Maximum of Due Date,NULL,Due Date,Due Date,NS Receipts: populated by PO Line Dates join
+Dates,promise_date,Vendor promised delivery date,Maximum of Expected Receipt Date,NULL,Promise Date,Promise Date,NS Open POs: current commitment date; NS Receipts: populated by PO Line Dates join then NS Open POs fallback
+Dates,old_promise_date,Previous promise date before revision,Maximum of Promise Date,NULL,NULL,NULL,NS Open POs: prior commitment; NS Receipts: populated by PO Line Dates join
+Dates,requested_date,Requested delivery date (custom),NULL,NULL,requested_c,requested_c,Epicor custom field
+Dates,receipt_date,Date goods were received,NULL,Maximum of Receipt Date,NULL,Receipt Date Line,Only on receipt transactions
+Dates,arrived_date,Date goods arrived (may differ from receipt),NULL,NULL,NULL,Arrived Date Line,Epicor Receipts only
+Quantities,total_quantity,Total ordered quantity,Maximum of Total Quantity,NULL,Release Qty on Release,NULL,Open POs only
+Quantities,received_quantity,Quantity already received,Maximum of Quantity Fulfilled/Received,Maximum of Quantity,Received Qty on Release,Our Quantity,Context differs: cumulative on PO vs transactional on receipt
+Quantities,open_quantity,Remaining quantity to receive,Maximum of Open Qty,NULL,Open Qty on Release,NULL,Open POs only - calculated field
+Quantities,vendor_quantity,Quantity in vendor's UOM,NULL,NULL,NULL,Supplier Qty,Epicor Receipts only
+Quantities,uninvoiced_qty_supplier,Received but not invoiced qty (supplier UOM),NULL,NULL,NULL,Supplier UnInvc Receipt Qty,Epicor Receipts only
+Quantities,uninvoiced_qty_internal,Received but not invoiced qty (internal UOM),NULL,NULL,NULL,Our UnInvc Receipt Qty,Epicor Receipts only
+Pricing,unit_cost,Cost per unit,Maximum of Item Rate,Maximum of Item Rate,Unit Price,Unit Price,
+Pricing,extended_amount,Total line amount (qty x cost),Maximum of Total Quantity Amount,Maximum of Amount,Extended Cost of PO Line,Extended Trans Value,
+Pricing,cost_per_code,"Cost basis (per each, per hundred, etc.)",NULL,NULL,NULL,Cost Per Code,Epicor Receipts only
+Shipping,ship_to_name,Ship-to address name,NULL,NULL,Ship Name,NULL,Epicor Open POs only
+Shipping,ship_to_zip,Ship-to postal/ZIP code,Maximum of Shipping Zip,NULL,Ship Zip,NULL,Open POs only
+Shipping,ship_to_country,Ship-to country code,Maximum of Shipping Country Code,NULL,Ship Country,NULL,Open POs only
+Shipping,ship_via_code,Shipping method/carrier code,NULL,NULL,Ship Via,Ship Via,Epicor only
+Vendor,vendor_id,Internal vendor identifier,Maximum of Vendor Internal ID,Maximum of Vendor Internal ID,Vendor ID,Supplier Number,
+Vendor,vendor_name,Vendor company name,Maximum of Vendor Name,Maximum of Vendor Name,Vendor Name,Supplier Name,
+Vendor,vendor_zip,Vendor postal/ZIP code,Maximum of Vendor Zip Code,Maximum of Vendor Zip,Vendor Zip,Supplier Zip,
+Vendor,purchase_point,Vendor purchase point/remit-to location,NULL,NULL,Purchase Point,Purchase Point,Epicor only
+Terms,terms_code,Payment terms code,Maximum of Terms,Maximum of Terms,Terms ID,Terms ID,
+Item,item_id,Internal item/part identifier,Maximum of Item Internal ID,Maximum of Item Internal ID,Part Number,Part Number,
+Item,item_name_mpn,Item name or MPN,Maximum of Item MPN Name Custom,Maximum of Item MPN Name Custom,Part Number,Part Number,
+Item,item_display_name,Item display/friendly name,Maximum of Item Display Name,Maximum of Item Display Name,NULL,NULL,NetSuite only
+Item,item_description,Item description,Maximum of Item Description,Maximum of Item Description,Part Description,Part Description,
+Item,line_description,PO line description (may differ from item),NULL,NULL,Line Description,PO Line Description,Epicor only - line-level override
+Item,vendor_part_num,Vendor's part number,NULL,NULL,NULL,Supplier Part Number,Epicor Receipts only
+Item,item_gl_account,GL expense/COGS account for item,Maximum of Item GL Expense Account,Maximum of Item GL Expense Account,NULL,NULL,NetSuite only
+Item,item_type,Item type code,Maximum of Item Type,Maximum of Type,Item Type,Item Type,Values may differ between systems
+Item,product_line_class,Product line or item class,Maximum of Product Line,Maximum of Product Line,Class,Class,
+UOM,uom_internal,Internal/inventory unit of measure,Maximum of Primary UOM,Maximum of Units,UOM,UoM,
+UOM,uom_purchasing,Purchasing/supplier unit of measure,NULL,NULL,Supplier UOM,Supplier UoM,Epicor only - may differ from internal UOM
+Job,job_number,Linked job/work order number,NULL,NULL,NULL,Job,Epicor Receipts only - for job-costed items
+Memo,memo,Header or line memo/comments,Maximum of Memo,NULL,NULL,NULL,NetSuite Open POs only

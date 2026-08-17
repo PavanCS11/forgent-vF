@@ -1,0 +1,269 @@
+# Transaction Schema - 56 fields
+# Field definitions match transaction_field_mapping.csv (the authoritative source)
+
+fields:
+  # ============================================
+  # SYSTEM & TYPE IDENTIFIERS
+  # ============================================
+  - name: source_system
+    type: string
+    description: "Identifies which ERP system the data originated from (NETSUITE or EPICOR)"
+
+  - name: transaction_type
+    type: string
+    description: "Identifies whether record is open order or receipt (OPEN_ORDER or RECEIPT)"
+
+  # ============================================
+  # PO IDENTIFIERS
+  # ============================================
+  - name: po_number
+    type: string
+    description: "Purchase order number"
+
+  - name: po_line
+    type: string
+    description: "Line number on the purchase order"
+
+  - name: po_release_num
+    type: string
+    description: "Release number within a PO line (Epicor only)"
+
+  # ============================================
+  # RECEIPT IDENTIFIERS
+  # ============================================
+  - name: receipt_number
+    type: string
+    description: "Receipt/packing slip document number"
+
+  - name: receipt_line
+    type: string
+    description: "Line number on the receipt document"
+
+  # ============================================
+  # ORGANIZATION
+  # ============================================
+  - name: subsidiary_company
+    type: string
+    description: "Company or subsidiary code"
+
+  - name: department
+    type: string
+    description: "Department or cost center"
+
+  - name: location_warehouse
+    type: string
+    description: "Warehouse or location for inventory"
+
+  - name: plant_site
+    type: string
+    description: "Manufacturing plant/site (Epicor only)"
+
+  # ============================================
+  # PEOPLE
+  # ============================================
+  - name: created_by
+    type: string
+    description: "User who created the transaction"
+
+  - name: buyer_id
+    type: string
+    description: "Buyer/purchasing agent ID"
+
+  # ============================================
+  # STATUS FLAGS
+  # ============================================
+  - name: po_status
+    type: string
+    description: "Status of the purchase order"
+
+  - name: is_open_order
+    type: boolean
+    description: "Flag indicating if PO header is open"
+
+  - name: is_open_release
+    type: boolean
+    description: "Flag indicating if release is open (Epicor)"
+
+  - name: is_confirmed
+    type: boolean
+    description: "Vendor confirmation status"
+
+  - name: bill_variance_status
+    type: string
+    description: "Invoice variance status on receipt"
+
+  # ============================================
+  # DATE FIELDS
+  # ============================================
+  - name: order_date
+    type: date
+    description: "Date the PO was created"
+
+  - name: due_date
+    type: date
+    description: "Due date for delivery"
+
+  - name: promise_date
+    type: date
+    description: "Vendor promised delivery date (NS Receipts: line-level new promise date from PO Line Dates join)"
+
+  - name: old_promise_date
+    type: date
+    description: "Previous promise date for NS Receipts (Maximum of PO Promise Date before line-level correction)"
+
+  - name: requested_date
+    type: date
+    description: "Requested delivery date (custom)"
+
+  - name: receipt_date
+    type: date
+    description: "Date goods were received"
+
+  - name: arrived_date
+    type: date
+    description: "Date goods arrived (may differ from receipt)"
+
+  # ============================================
+  # QUANTITY FIELDS
+  # ============================================
+  - name: total_quantity
+    type: float
+    description: "Total ordered quantity"
+
+  - name: received_quantity
+    type: float
+    description: "Quantity already received"
+
+  - name: open_quantity
+    type: float
+    description: "Remaining quantity to receive"
+
+  - name: vendor_quantity
+    type: float
+    description: "Quantity in vendor's UOM"
+
+  - name: uninvoiced_qty_supplier
+    type: float
+    description: "Received but not invoiced qty (supplier UOM)"
+
+  - name: uninvoiced_qty_internal
+    type: float
+    description: "Received but not invoiced qty (internal UOM)"
+
+  # ============================================
+  # FINANCIAL FIELDS
+  # ============================================
+  - name: unit_cost
+    type: float
+    description: "Cost per unit"
+
+  - name: extended_amount
+    type: float
+    description: "Total line amount (qty x cost)"
+
+  - name: cost_per_code
+    type: string
+    description: "Cost basis (per each, per hundred, etc.)"
+
+  # ============================================
+  # SHIPPING FIELDS
+  # ============================================
+  - name: ship_to_name
+    type: string
+    description: "Ship-to address name"
+
+  - name: ship_to_zip
+    type: string
+    description: "Ship-to postal/ZIP code"
+
+  - name: ship_to_country
+    type: string
+    description: "Ship-to country code"
+
+  - name: ship_via_code
+    type: string
+    description: "Shipping method/carrier code"
+
+  # ============================================
+  # VENDOR FIELDS
+  # ============================================
+  - name: vendor_id
+    type: string
+    description: "Internal vendor identifier"
+
+  - name: vendor_name
+    type: string
+    description: "Vendor company name"
+
+  - name: vendor_zip
+    type: string
+    description: "Vendor postal/ZIP code"
+
+  - name: purchase_point
+    type: string
+    description: "Vendor purchase point/remit-to location"
+
+  - name: terms_code
+    type: string
+    description: "Payment terms code"
+
+  # ============================================
+  # ITEM FIELDS
+  # ============================================
+  - name: item_id
+    type: string
+    description: "Internal item/part identifier"
+
+  - name: item_name_mpn
+    type: string
+    description: "Item name or MPN"
+
+  - name: item_display_name
+    type: string
+    description: "Item display/friendly name"
+
+  - name: item_description
+    type: string
+    description: "Item description"
+
+  - name: line_description
+    type: string
+    description: "PO line description (may differ from item)"
+
+  - name: vendor_part_num
+    type: string
+    description: "Vendor's part number"
+
+  - name: item_gl_account
+    type: string
+    description: "GL expense/COGS account for item"
+
+  - name: item_type
+    type: string
+    description: "Item type code"
+
+  - name: product_line_class
+    type: string
+    description: "Product line or item class"
+
+  # ============================================
+  # UNIT OF MEASURE
+  # ============================================
+  - name: uom_internal
+    type: string
+    description: "Internal/inventory unit of measure"
+
+  - name: uom_purchasing
+    type: string
+    description: "Purchasing/supplier unit of measure"
+
+  # ============================================
+  # OTHER FIELDS
+  # ============================================
+  - name: job_number
+    type: string
+    description: "Linked job/work order number"
+
+  - name: memo
+    type: string
+    description: "Header or line memo/comments"

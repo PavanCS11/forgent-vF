@@ -1,0 +1,499 @@
+[2026-04-01 18:50:12] Existing CSV has 14 months
+[2026-04-01 18:50:12] 
+[2026-04-01 18:50:12] Website months: 2025-03 to 2026-02
+[2026-04-01 18:50:12] CSV months:     2025-01 to 2026-02
+[2026-04-01 18:50:12] 
+[2026-04-01 18:50:12] Comparison:
+[2026-04-01 18:50:12]   [OK] 12 months match between website and CSV
+[2026-04-01 18:50:12]   [!] 2 month(s) in CSV but not on website - website may have dropped old data
+[2026-04-01 18:50:12]       - 2025-01
+[2026-04-01 18:50:12]       - 2025-02
+[2026-04-01 18:50:12]   [NEW] 0 new months to add
+[2026-04-01 18:50:12] 
+[2026-04-01 18:50:12] No new months to add. CSV is up to date.
+[2026-04-01 18:50:12] Latest available: 2026-02 ($5.8590/lb)
+[2026-04-01 18:50:12] 
+[WARNING] Latest data is 2 months behind current month. Check website status.
+[2026-04-01 18:50:12] 
+[WARNING] Website has 12 months but CSV has 14. This is expected if the
+          website uses a rolling window, but verify data integrity.
+[2026-04-01 18:50:12] 
+[2026-04-01 18:50:12] Log saved to: C:\Users\deepankar.s\OneDrive - Praval\Documents\Forgent\forgent-vF 1\forgent-vF\step_3_maintenance\b_scripts\copper_price_updates.log
+[2026-04-01 18:50:12] ============================================================
+[2026-04-06 18:02:28] ============================================================
+[2026-04-06 18:02:28] Copper Price Updater
+[2026-04-06 18:02:28] ============================================================
+[2026-04-06 18:02:28] Fetching data from: https://www.cnwire.com/CopperPrice.php
+[2026-04-06 18:02:33] Found 12 months of price data on website
+[2026-04-06 18:02:33] Loading existing prices from: C:\Users\deepankar.s\Documents\Forgent_deep\Forgent\forgent-vF 1\forgent-vF\step_3_maintenance\a.mappings\copper_price_index.csv
+[2026-04-06 18:02:33] Existing CSV has 14 months
+[2026-04-06 18:02:33] 
+[2026-04-06 18:02:34] Website months: 2025-04 to 2026-03
+[2026-04-06 18:02:34] CSV months:     2025-01 to 2026-02
+[2026-04-06 18:02:34] 
+[2026-04-06 18:02:34] Comparison:
+[2026-04-06 18:02:34]   [OK] 11 months match between website and CSV
+[2026-04-06 18:02:34]   [!] 3 month(s) in CSV but not on website - website may have dropped old data
+[2026-04-06 18:02:35]       - 2025-01
+[2026-04-06 18:02:35]       - 2025-02
+[2026-04-06 18:02:35]       - 2025-03
+[2026-04-06 18:02:35]   [NEW] 1 new month(s) to add
+[2026-04-06 18:02:35] 
+Found 1 NEW month(s):
+[2026-04-06 18:02:35]   2026-03: $5.6517/lb
+[2026-04-06 18:02:35] 
+Saving updated prices to: C:\Users\deepankar.s\Documents\Forgent_deep\Forgent\forgent-vF 1\forgent-vF\step_3_maintenance\a.mappings\copper_price_index.csv
+[2026-04-06 18:02:35] Done! CSV now has 15 months.
+[2026-04-06 18:02:35] 
+[2026-04-06 18:02:35] Log saved to: C:\Users\deepankar.s\Documents\Forgent_deep\Forgent\forgent-vF 1\forgent-vF\step_3_maintenance\b_scripts\copper_price_updates.log
+[2026-04-06 18:02:35] ============================================================
+[2026-05-18 23:31:16] ============================================================
+[2026-05-18 23:31:16] Copper Price Updater
+[2026-05-18 23:31:16] ============================================================
+[2026-05-18 23:31:16] Fetching data from: https://www.cnwire.com/CopperPrice.php
+[2026-05-18 23:31:19] Found 12 months of price data on website
+[2026-05-18 23:31:19] Loading existing prices from: C:\Users\deepankar.s\Documents\Forgent_deep\Forgent\forgent-vF 1\forgent-vF\step_3_maintenance\a.mappings\copper_price_index.csv
+[2026-05-18 23:31:19] Existing CSV has 15 months
+[2026-05-18 23:31:19] 
+[2026-05-18 23:31:19] Website months: 2025-05 to 2026-04
+[2026-05-18 23:31:19] CSV months:     2025-01 to 2026-03
+[2026-05-18 23:31:19] 
+[2026-05-18 23:31:19] Comparison:
+[2026-05-18 23:31:19]   [OK] 11 months match between website and CSV
+[2026-05-18 23:31:19]   [!] 4 month(s) in CSV but not on website - website may have dropped old data
+[2026-05-18 23:31:19]       - 2025-01
+[2026-05-18 23:31:19]       - 2025-02
+[2026-05-18 23:31:19]       - 2025-03
+[2026-05-18 23:31:19]       - 2025-04
+[2026-05-18 23:31:19]   [NEW] 1 new month(s) to add
+[2026-05-18 23:31:19] 
+Found 1 NEW month(s):
+[2026-05-18 23:31:19]   2026-04: $5.9036/lb
+[2026-05-18 23:31:20] 
+Saving updated prices to: C:\Users\deepankar.s\Documents\Forgent_deep\Forgent\forgent-vF 1\forgent-vF\step_3_maintenance\a.mappings\copper_price_index.csv
+[2026-05-18 23:31:20] Done! CSV now has 16 months.
+[2026-05-18 23:31:20] 
+[2026-05-18 23:31:20] Log saved to: C:\Users\deepankar.s\Documents\Forgent_deep\Forgent\forgent-vF 1\forgent-vF\step_3_maintenance\b_scripts\copper_price_updates.log
+[2026-05-18 23:31:20] ============================================================
+[2026-05-18 23:59:28] ============================================================
+[2026-05-18 23:59:28] Copper Price Updater
+[2026-05-18 23:59:28] ============================================================
+[2026-05-18 23:59:28] Fetching data from: https://www.cnwire.com/CopperPrice.php
+[2026-05-18 23:59:30] Found 12 months of price data on website
+[2026-05-18 23:59:30] Loading existing prices from: C:\Users\deepankar.s\Documents\Forgent_deep\Forgent\forgent-vF 1\forgent-vF\step_3_maintenance\a.mappings\copper_price_index.csv
+[2026-05-18 23:59:30] Existing CSV has 16 months
+[2026-05-18 23:59:30] 
+[2026-05-18 23:59:30] Website months: 2025-05 to 2026-04
+[2026-05-18 23:59:30] CSV months:     2025-01 to 2026-04
+[2026-05-18 23:59:31] 
+[2026-05-18 23:59:31] Comparison:
+[2026-05-18 23:59:31]   [OK] 12 months match between website and CSV
+[2026-05-18 23:59:31]   [!] 4 month(s) in CSV but not on website - website may have dropped old data
+[2026-05-18 23:59:31]       - 2025-01
+[2026-05-18 23:59:31]       - 2025-02
+[2026-05-18 23:59:31]       - 2025-03
+[2026-05-18 23:59:31]       - 2025-04
+[2026-05-18 23:59:31]   [NEW] 0 new months to add
+[2026-05-18 23:59:31] 
+[2026-05-18 23:59:31] No new months to add. CSV is up to date.
+[2026-05-18 23:59:31] Latest available: 2026-04 ($5.9036/lb)
+[2026-05-18 23:59:31] 
+[INFO] Note: May 2026 data not yet available. Monthly averages are
+       typically published in the first week after the month ends.
+[2026-05-18 23:59:31] 
+[WARNING] Website has 12 months but CSV has 16. This is expected if the
+          website uses a rolling window, but verify data integrity.
+[2026-05-18 23:59:31] 
+[2026-05-18 23:59:31] Log saved to: C:\Users\deepankar.s\Documents\Forgent_deep\Forgent\forgent-vF 1\forgent-vF\step_3_maintenance\b_scripts\copper_price_updates.log
+[2026-05-18 23:59:31] ============================================================
+[2026-05-20 15:20:58] ============================================================
+[2026-05-20 15:20:58] Copper Price Updater
+[2026-05-20 15:20:58] ============================================================
+[2026-05-20 15:20:58] Fetching data from: https://www.cnwire.com/CopperPrice.php
+[2026-05-20 15:21:00] Found 12 months of price data on website
+[2026-05-20 15:21:00] Loading existing prices from: C:\Users\deepankar.s\Documents\Forgent_deep\Forgent\forgent-vF 1\forgent-vF\step_3_maintenance\a.mappings\copper_price_index.csv
+[2026-05-20 15:21:00] Existing CSV has 16 months
+[2026-05-20 15:21:00] 
+[2026-05-20 15:21:00] Website months: 2025-05 to 2026-04
+[2026-05-20 15:21:00] CSV months:     2025-01 to 2026-04
+[2026-05-20 15:21:01] 
+[2026-05-20 15:21:01] Comparison:
+[2026-05-20 15:21:01]   [OK] 12 months match between website and CSV
+[2026-05-20 15:21:01]   [!] 4 month(s) in CSV but not on website - website may have dropped old data
+[2026-05-20 15:21:01]       - 2025-01
+[2026-05-20 15:21:01]       - 2025-02
+[2026-05-20 15:21:01]       - 2025-03
+[2026-05-20 15:21:01]       - 2025-04
+[2026-05-20 15:21:01]   [NEW] 0 new months to add
+[2026-05-20 15:21:01] 
+[2026-05-20 15:21:01] No new months to add. CSV is up to date.
+[2026-05-20 15:21:01] Latest available: 2026-04 ($5.9036/lb)
+[2026-05-20 15:21:01] 
+[INFO] Note: May 2026 data not yet available. Monthly averages are
+       typically published in the first week after the month ends.
+[2026-05-20 15:21:01] 
+[WARNING] Website has 12 months but CSV has 16. This is expected if the
+          website uses a rolling window, but verify data integrity.
+[2026-05-20 15:21:01] 
+[2026-05-20 15:21:01] Log saved to: C:\Users\deepankar.s\Documents\Forgent_deep\Forgent\forgent-vF 1\forgent-vF\step_3_maintenance\b_scripts\copper_price_updates.log
+[2026-05-20 15:21:01] ============================================================
+[2026-05-20 15:26:09] ============================================================
+[2026-05-20 15:26:09] Copper Price Updater
+[2026-05-20 15:26:09] ============================================================
+[2026-05-20 15:26:09] Fetching data from: https://www.cnwire.com/CopperPrice.php
+[2026-05-20 15:26:11] Found 12 months of price data on website
+[2026-05-20 15:26:11] Loading existing prices from: C:\Users\deepankar.s\Documents\Forgent_deep\Forgent\forgent-vF 1\forgent-vF\step_3_maintenance\a.mappings\copper_price_index.csv
+[2026-05-20 15:26:12] Existing CSV has 16 months
+[2026-05-20 15:26:12] 
+[2026-05-20 15:26:12] Website months: 2025-05 to 2026-04
+[2026-05-20 15:26:12] CSV months:     2025-01 to 2026-04
+[2026-05-20 15:26:12] 
+[2026-05-20 15:26:12] Comparison:
+[2026-05-20 15:26:12]   [OK] 12 months match between website and CSV
+[2026-05-20 15:26:12]   [!] 4 month(s) in CSV but not on website - website may have dropped old data
+[2026-05-20 15:26:12]       - 2025-01
+[2026-05-20 15:26:12]       - 2025-02
+[2026-05-20 15:26:12]       - 2025-03
+[2026-05-20 15:26:12]       - 2025-04
+[2026-05-20 15:26:12]   [NEW] 0 new months to add
+[2026-05-20 15:26:12] 
+[2026-05-20 15:26:12] No new months to add. CSV is up to date.
+[2026-05-20 15:26:12] Latest available: 2026-04 ($5.9036/lb)
+[2026-05-20 15:26:12] 
+[INFO] Note: May 2026 data not yet available. Monthly averages are
+       typically published in the first week after the month ends.
+[2026-05-20 15:26:12] 
+[WARNING] Website has 12 months but CSV has 16. This is expected if the
+          website uses a rolling window, but verify data integrity.
+[2026-05-20 15:26:12] 
+[2026-05-20 15:26:12] Log saved to: C:\Users\deepankar.s\Documents\Forgent_deep\Forgent\forgent-vF 1\forgent-vF\step_3_maintenance\b_scripts\copper_price_updates.log
+[2026-05-20 15:26:12] ============================================================
+[2026-05-22 15:05:32] ============================================================
+[2026-05-22 15:05:32] Copper Price Updater
+[2026-05-22 15:05:32] ============================================================
+[2026-05-22 15:05:32] Fetching data from: https://www.cnwire.com/CopperPrice.php
+[2026-05-22 15:05:36] Found 12 months of price data on website
+[2026-05-22 15:05:36] Loading existing prices from: C:\Users\deepankar.s\Documents\Forgent_deep\Forgent\forgent-vF 1\forgent-vF\step_3_maintenance\a.mappings\copper_price_index.csv
+[2026-05-22 15:05:36] Existing CSV has 16 months
+[2026-05-22 15:05:36] 
+[2026-05-22 15:05:36] Website months: 2025-05 to 2026-04
+[2026-05-22 15:05:36] CSV months:     2025-01 to 2026-04
+[2026-05-22 15:05:36] 
+[2026-05-22 15:05:36] Comparison:
+[2026-05-22 15:05:36]   [OK] 12 months match between website and CSV
+[2026-05-22 15:05:36]   [!] 4 month(s) in CSV but not on website - website may have dropped old data
+[2026-05-22 15:05:36]       - 2025-01
+[2026-05-22 15:05:36]       - 2025-02
+[2026-05-22 15:05:36]       - 2025-03
+[2026-05-22 15:05:36]       - 2025-04
+[2026-05-22 15:05:36]   [NEW] 0 new months to add
+[2026-05-22 15:05:36] 
+[2026-05-22 15:05:36] No new months to add. CSV is up to date.
+[2026-05-22 15:05:36] Latest available: 2026-04 ($5.9036/lb)
+[2026-05-22 15:05:36] 
+[INFO] Note: May 2026 data not yet available. Monthly averages are
+       typically published in the first week after the month ends.
+[2026-05-22 15:05:36] 
+[WARNING] Website has 12 months but CSV has 16. This is expected if the
+          website uses a rolling window, but verify data integrity.
+[2026-05-22 15:05:36] 
+[2026-05-22 15:05:36] Log saved to: C:\Users\deepankar.s\Documents\Forgent_deep\Forgent\forgent-vF 1\forgent-vF\step_3_maintenance\b_scripts\copper_price_updates.log
+[2026-05-22 15:05:36] ============================================================
+[2026-05-22 15:07:36] ============================================================
+[2026-05-22 15:07:36] Copper Price Updater
+[2026-05-22 15:07:36] ============================================================
+[2026-05-22 15:07:36] Fetching data from: https://www.cnwire.com/CopperPrice.php
+[2026-05-22 15:07:38] Found 12 months of price data on website
+[2026-05-22 15:07:38] Loading existing prices from: C:\Users\deepankar.s\Documents\Forgent_deep\Forgent\forgent-vF 1\forgent-vF\step_3_maintenance\a.mappings\copper_price_index.csv
+[2026-05-22 15:07:38] Existing CSV has 16 months
+[2026-05-22 15:07:38] 
+[2026-05-22 15:07:38] Website months: 2025-05 to 2026-04
+[2026-05-22 15:07:38] CSV months:     2025-01 to 2026-04
+[2026-05-22 15:07:38] 
+[2026-05-22 15:07:38] Comparison:
+[2026-05-22 15:07:39]   [OK] 12 months match between website and CSV
+[2026-05-22 15:07:39]   [!] 4 month(s) in CSV but not on website - website may have dropped old data
+[2026-05-22 15:07:39]       - 2025-01
+[2026-05-22 15:07:39]       - 2025-02
+[2026-05-22 15:07:39]       - 2025-03
+[2026-05-22 15:07:39]       - 2025-04
+[2026-05-22 15:07:39]   [NEW] 0 new months to add
+[2026-05-22 15:07:39] 
+[2026-05-22 15:07:39] No new months to add. CSV is up to date.
+[2026-05-22 15:07:39] Latest available: 2026-04 ($5.9036/lb)
+[2026-05-22 15:07:39] 
+[INFO] Note: May 2026 data not yet available. Monthly averages are
+       typically published in the first week after the month ends.
+[2026-05-22 15:07:39] 
+[WARNING] Website has 12 months but CSV has 16. This is expected if the
+          website uses a rolling window, but verify data integrity.
+[2026-05-22 15:07:39] 
+[2026-05-22 15:07:39] Log saved to: C:\Users\deepankar.s\Documents\Forgent_deep\Forgent\forgent-vF 1\forgent-vF\step_3_maintenance\b_scripts\copper_price_updates.log
+[2026-05-22 15:07:39] ============================================================
+[2026-05-25 15:46:30] ============================================================
+[2026-05-25 15:46:30] Copper Price Updater
+[2026-05-25 15:46:30] ============================================================
+[2026-05-25 15:46:30] Fetching data from: https://www.cnwire.com/CopperPrice.php
+[2026-05-25 15:46:33] Found 12 months of price data on website
+[2026-05-25 15:46:33] Loading existing prices from: C:\Users\deepankar.s\Documents\Forgent_deep\Forgent\forgent-vF 1\forgent-vF\step_3_maintenance\a.mappings\copper_price_index.csv
+[2026-05-25 15:46:33] Existing CSV has 16 months
+[2026-05-25 15:46:33] 
+[2026-05-25 15:46:34] Website months: 2025-05 to 2026-04
+[2026-05-25 15:46:34] CSV months:     2025-01 to 2026-04
+[2026-05-25 15:46:34] 
+[2026-05-25 15:46:34] Comparison:
+[2026-05-25 15:46:34]   [OK] 12 months match between website and CSV
+[2026-05-25 15:46:34]   [!] 4 month(s) in CSV but not on website - website may have dropped old data
+[2026-05-25 15:46:34]       - 2025-01
+[2026-05-25 15:46:34]       - 2025-02
+[2026-05-25 15:46:34]       - 2025-03
+[2026-05-25 15:46:34]       - 2025-04
+[2026-05-25 15:46:34]   [NEW] 0 new months to add
+[2026-05-25 15:46:34] 
+[2026-05-25 15:46:34] No new months to add. CSV is up to date.
+[2026-05-25 15:46:34] Latest available: 2026-04 ($5.9036/lb)
+[2026-05-25 15:46:34] 
+[INFO] Note: May 2026 data not yet available. Monthly averages are
+       typically published in the first week after the month ends.
+[2026-05-25 15:46:34] 
+[WARNING] Website has 12 months but CSV has 16. This is expected if the
+          website uses a rolling window, but verify data integrity.
+[2026-05-25 15:46:34] 
+[2026-05-25 15:46:34] Log saved to: C:\Users\deepankar.s\Documents\Forgent_deep\Forgent\forgent-vF 1\forgent-vF\step_3_maintenance\b_scripts\copper_price_updates.log
+[2026-05-25 15:46:34] ============================================================
+[2026-06-01 15:37:09] ============================================================
+[2026-06-01 15:37:09] Copper Price Updater
+[2026-06-01 15:37:09] ============================================================
+[2026-06-01 15:37:09] Fetching data from: https://www.cnwire.com/CopperPrice.php
+[2026-06-01 15:37:12] Found 12 months of price data on website
+[2026-06-01 15:37:12] Loading existing prices from: C:\Users\deepankar.s\Documents\Forgent_deep\Forgent\forgent-vF 1\forgent-vF\step_3_maintenance\a.mappings\copper_price_index.csv
+[2026-06-01 15:37:12] Existing CSV has 16 months
+[2026-06-01 15:37:12] 
+[2026-06-01 15:37:12] Website months: 2025-06 to 2026-05
+[2026-06-01 15:37:12] CSV months:     2025-01 to 2026-04
+[2026-06-01 15:37:12] 
+[2026-06-01 15:37:12] Comparison:
+[2026-06-01 15:37:12]   [OK] 11 months match between website and CSV
+[2026-06-01 15:37:12]   [!] 5 month(s) in CSV but not on website - website may have dropped old data
+[2026-06-01 15:37:12]       - 2025-01
+[2026-06-01 15:37:12]       - 2025-02
+[2026-06-01 15:37:12]       - 2025-03
+[2026-06-01 15:37:12]       - 2025-04
+[2026-06-01 15:37:12]       - 2025-05
+[2026-06-01 15:37:12]   [NEW] 1 new month(s) to add
+[2026-06-01 15:37:12] 
+Found 1 NEW month(s):
+[2026-06-01 15:37:12]   2026-05: $6.2642/lb
+[2026-06-01 15:37:12] 
+Saving updated prices to: C:\Users\deepankar.s\Documents\Forgent_deep\Forgent\forgent-vF 1\forgent-vF\step_3_maintenance\a.mappings\copper_price_index.csv
+[2026-06-01 15:37:12] Done! CSV now has 17 months.
+[2026-06-01 15:37:12] 
+[2026-06-01 15:37:12] Log saved to: C:\Users\deepankar.s\Documents\Forgent_deep\Forgent\forgent-vF 1\forgent-vF\step_3_maintenance\b_scripts\copper_price_updates.log
+[2026-06-01 15:37:12] ============================================================
+[2026-06-08 16:59:22] ============================================================
+[2026-06-08 16:59:22] Copper Price Updater
+[2026-06-08 16:59:22] ============================================================
+[2026-06-08 16:59:22] Fetching data from: https://www.cnwire.com/CopperPrice.php
+[2026-06-08 16:59:25] Found 12 months of price data on website
+[2026-06-08 16:59:25] Loading existing prices from: C:\Users\deepankar.s\Documents\Forgent_deep\Forgent\forgent-vF 1\forgent-vF\step_3_maintenance\a.mappings\copper_price_index.csv
+[2026-06-08 16:59:25] Existing CSV has 17 months
+[2026-06-08 16:59:25] 
+[2026-06-08 16:59:25] Website months: 2025-06 to 2026-05
+[2026-06-08 16:59:25] CSV months:     2025-01 to 2026-05
+[2026-06-08 16:59:25] 
+[2026-06-08 16:59:25] Comparison:
+[2026-06-08 16:59:25]   [OK] 12 months match between website and CSV
+[2026-06-08 16:59:25]   [!] 5 month(s) in CSV but not on website - website may have dropped old data
+[2026-06-08 16:59:25]       - 2025-01
+[2026-06-08 16:59:25]       - 2025-02
+[2026-06-08 16:59:25]       - 2025-03
+[2026-06-08 16:59:25]       - 2025-04
+[2026-06-08 16:59:25]       - 2025-05
+[2026-06-08 16:59:25]   [NEW] 0 new months to add
+[2026-06-08 16:59:25] 
+[2026-06-08 16:59:25] No new months to add. CSV is up to date.
+[2026-06-08 16:59:25] Latest available: 2026-05 ($6.2642/lb)
+[2026-06-08 16:59:25] 
+[INFO] Note: June 2026 data not yet available. Monthly averages are
+       typically published in the first week after the month ends.
+[2026-06-08 16:59:25] 
+[WARNING] Website has 12 months but CSV has 17. This is expected if the
+          website uses a rolling window, but verify data integrity.
+[2026-06-08 16:59:25] 
+[2026-06-08 16:59:25] Log saved to: C:\Users\deepankar.s\Documents\Forgent_deep\Forgent\forgent-vF 1\forgent-vF\step_3_maintenance\b_scripts\copper_price_updates.log
+[2026-06-08 16:59:25] ============================================================
+[2026-06-15 14:58:08] ============================================================
+[2026-06-15 14:58:08] Copper Price Updater
+[2026-06-15 14:58:08] ============================================================
+[2026-06-15 14:58:08] Fetching data from: https://www.cnwire.com/CopperPrice.php
+[2026-06-15 14:58:11] Found 12 months of price data on website
+[2026-06-15 14:58:11] Loading existing prices from: C:\Users\deepankar.s\Documents\Forgent_deep\Forgent\forgent-vF 1\forgent-vF\step_3_maintenance\a.mappings\copper_price_index.csv
+[2026-06-15 14:58:11] Existing CSV has 17 months
+[2026-06-15 14:58:11] 
+[2026-06-15 14:58:11] Website months: 2025-06 to 2026-05
+[2026-06-15 14:58:11] CSV months:     2025-01 to 2026-05
+[2026-06-15 14:58:11] 
+[2026-06-15 14:58:11] Comparison:
+[2026-06-15 14:58:11]   [OK] 12 months match between website and CSV
+[2026-06-15 14:58:11]   [!] 5 month(s) in CSV but not on website - website may have dropped old data
+[2026-06-15 14:58:11]       - 2025-01
+[2026-06-15 14:58:11]       - 2025-02
+[2026-06-15 14:58:11]       - 2025-03
+[2026-06-15 14:58:11]       - 2025-04
+[2026-06-15 14:58:11]       - 2025-05
+[2026-06-15 14:58:11]   [NEW] 0 new months to add
+[2026-06-15 14:58:11] 
+[2026-06-15 14:58:11] No new months to add. CSV is up to date.
+[2026-06-15 14:58:11] Latest available: 2026-05 ($6.2642/lb)
+[2026-06-15 14:58:11] 
+[INFO] Note: June 2026 data not yet available. Monthly averages are
+       typically published in the first week after the month ends.
+[2026-06-15 14:58:11] 
+[WARNING] Website has 12 months but CSV has 17. This is expected if the
+          website uses a rolling window, but verify data integrity.
+[2026-06-15 14:58:11] 
+[2026-06-15 14:58:11] Log saved to: C:\Users\deepankar.s\Documents\Forgent_deep\Forgent\forgent-vF 1\forgent-vF\step_3_maintenance\b_scripts\copper_price_updates.log
+[2026-06-15 14:58:11] ============================================================
+[2026-06-22 15:58:41] ============================================================
+[2026-06-22 15:58:41] Copper Price Updater
+[2026-06-22 15:58:41] ============================================================
+[2026-06-22 15:58:41] Fetching data from: https://www.cnwire.com/CopperPrice.php
+[2026-06-22 15:58:44] Found 12 months of price data on website
+[2026-06-22 15:58:44] Loading existing prices from: C:\Users\deepankar.s\Documents\Forgent_deep\Forgent\forgent-vF 1\forgent-vF\step_3_maintenance\a.mappings\copper_price_index.csv
+[2026-06-22 15:58:44] Existing CSV has 17 months
+[2026-06-22 15:58:44] 
+[2026-06-22 15:58:44] Website months: 2025-06 to 2026-05
+[2026-06-22 15:58:44] CSV months:     2025-01 to 2026-05
+[2026-06-22 15:58:44] 
+[2026-06-22 15:58:44] Comparison:
+[2026-06-22 15:58:44]   [OK] 12 months match between website and CSV
+[2026-06-22 15:58:44]   [!] 5 month(s) in CSV but not on website - website may have dropped old data
+[2026-06-22 15:58:44]       - 2025-01
+[2026-06-22 15:58:44]       - 2025-02
+[2026-06-22 15:58:44]       - 2025-03
+[2026-06-22 15:58:44]       - 2025-04
+[2026-06-22 15:58:44]       - 2025-05
+[2026-06-22 15:58:45]   [NEW] 0 new months to add
+[2026-06-22 15:58:45] 
+[2026-06-22 15:58:45] No new months to add. CSV is up to date.
+[2026-06-22 15:58:45] Latest available: 2026-05 ($6.2642/lb)
+[2026-06-22 15:58:45] 
+[INFO] Note: June 2026 data not yet available. Monthly averages are
+       typically published in the first week after the month ends.
+[2026-06-22 15:58:45] 
+[WARNING] Website has 12 months but CSV has 17. This is expected if the
+          website uses a rolling window, but verify data integrity.
+[2026-06-22 15:58:45] 
+[2026-06-22 15:58:45] Log saved to: C:\Users\deepankar.s\Documents\Forgent_deep\Forgent\forgent-vF 1\forgent-vF\step_3_maintenance\b_scripts\copper_price_updates.log
+[2026-06-22 15:58:45] ============================================================
+[2026-06-29 16:25:20] ============================================================
+[2026-06-29 16:25:20] Copper Price Updater
+[2026-06-29 16:25:20] ============================================================
+[2026-06-29 16:25:20] Fetching data from: https://www.cnwire.com/CopperPrice.php
+[2026-06-29 16:25:22] Found 12 months of price data on website
+[2026-06-29 16:25:22] Loading existing prices from: C:\Users\deepankar.s\Documents\Forgent_deep\Forgent\forgent-vF 1\forgent-vF\step_3_maintenance\a.mappings\copper_price_index.csv
+[2026-06-29 16:25:22] Existing CSV has 17 months
+[2026-06-29 16:25:22] 
+[2026-06-29 16:25:22] Website months: 2025-06 to 2026-05
+[2026-06-29 16:25:22] CSV months:     2025-01 to 2026-05
+[2026-06-29 16:25:22] 
+[2026-06-29 16:25:23] Comparison:
+[2026-06-29 16:25:23]   [OK] 12 months match between website and CSV
+[2026-06-29 16:25:23]   [!] 5 month(s) in CSV but not on website - website may have dropped old data
+[2026-06-29 16:25:23]       - 2025-01
+[2026-06-29 16:25:23]       - 2025-02
+[2026-06-29 16:25:23]       - 2025-03
+[2026-06-29 16:25:23]       - 2025-04
+[2026-06-29 16:25:23]       - 2025-05
+[2026-06-29 16:25:23]   [NEW] 0 new months to add
+[2026-06-29 16:25:23] 
+[2026-06-29 16:25:23] No new months to add. CSV is up to date.
+[2026-06-29 16:25:23] Latest available: 2026-05 ($6.2642/lb)
+[2026-06-29 16:25:23] 
+[INFO] Note: June 2026 data not yet available. Monthly averages are
+       typically published in the first week after the month ends.
+[2026-06-29 16:25:23] 
+[WARNING] Website has 12 months but CSV has 17. This is expected if the
+          website uses a rolling window, but verify data integrity.
+[2026-06-29 16:25:23] 
+[2026-06-29 16:25:23] Log saved to: C:\Users\deepankar.s\Documents\Forgent_deep\Forgent\forgent-vF 1\forgent-vF\step_3_maintenance\b_scripts\copper_price_updates.log
+[2026-06-29 16:25:23] ============================================================
+[2026-07-06 15:41:27] ============================================================
+[2026-07-06 15:41:27] Copper Price Updater
+[2026-07-06 15:41:27] ============================================================
+[2026-07-06 15:41:27] Fetching data from: https://www.cnwire.com/CopperPrice.php
+[2026-07-06 15:41:30] Found 12 months of price data on website
+[2026-07-06 15:41:30] Loading existing prices from: C:\Users\deepankar.s\Documents\Forgent_deep\Forgent\forgent-vF 1\forgent-vF\step_3_maintenance\a.mappings\copper_price_index.csv
+[2026-07-06 15:41:30] Existing CSV has 17 months
+[2026-07-06 15:41:30] 
+[2026-07-06 15:41:30] Website months: 2025-08 to 2026-06
+[2026-07-06 15:41:30] CSV months:     2025-01 to 2026-05
+[2026-07-06 15:41:30] 
+[2026-07-06 15:41:30] Comparison:
+[2026-07-06 15:41:30]   [OK] 10 months match between website and CSV
+[2026-07-06 15:41:30]   [!] 7 month(s) in CSV but not on website - website may have dropped old data
+[2026-07-06 15:41:30]   [NEW] 1 new month(s) to add
+[2026-07-06 15:41:30] 
+Found 2 NEW month(s):
+[2026-07-06 15:41:30]   2026-06: $6.3223/lb
+[2026-07-06 15:41:30]   2026-06: $6.3224/lb
+[2026-07-06 15:41:30] 
+Saving updated prices to: C:\Users\deepankar.s\Documents\Forgent_deep\Forgent\forgent-vF 1\forgent-vF\step_3_maintenance\a.mappings\copper_price_index.csv
+[2026-07-06 15:41:30] Done! CSV now has 19 months.
+[2026-07-06 15:41:30] 
+[2026-07-06 15:41:30] Log saved to: C:\Users\deepankar.s\Documents\Forgent_deep\Forgent\forgent-vF 1\forgent-vF\step_3_maintenance\b_scripts\copper_price_updates.log
+[2026-07-06 15:41:30] ============================================================
+[2026-07-13 17:53:08] ============================================================
+[2026-07-13 17:53:08] Copper Price Updater
+[2026-07-13 17:53:08] ============================================================
+[2026-07-13 17:53:08] Fetching data from: https://www.cnwire.com/CopperPrice.php
+[2026-07-13 17:53:15] Found 12 months of price data on website
+[2026-07-13 17:53:15] Loading existing prices from: C:\Users\deepankar.s\Documents\Forgent_deep\Forgent\forgent-vF 1\forgent-vF\step_3_maintenance\a.mappings\copper_price_index.csv
+[2026-07-13 17:53:15] Existing CSV has 19 months
+[2026-07-13 17:53:17] 
+[2026-07-13 17:53:17] Website months: 2025-08 to 2026-06
+[2026-07-13 17:53:17] CSV months:     2025-01 to 2026-06
+[2026-07-13 17:53:17] 
+[2026-07-13 17:53:17] Comparison:
+[2026-07-13 17:53:17]   [OK] 11 months match between website and CSV
+[2026-07-13 17:53:17]   [!] 7 month(s) in CSV but not on website - website may have dropped old data
+[2026-07-13 17:53:17]   [NEW] 0 new months to add
+[2026-07-13 17:53:18] 
+[2026-07-13 17:53:18] No new months to add. CSV is up to date.
+[2026-07-13 17:53:18] Latest available: 2026-06 ($6.3223/lb)
+[2026-07-13 17:53:18] 
+[INFO] Note: July 2026 data not yet available. Monthly averages are
+       typically published in the first week after the month ends.
+[2026-07-13 17:53:18] 
+[WARNING] Website has 12 months but CSV has 19. This is expected if the
+          website uses a rolling window, but verify data integrity.
+[2026-07-13 17:53:18] 
+[2026-07-13 17:53:18] Log saved to: C:\Users\deepankar.s\Documents\Forgent_deep\Forgent\forgent-vF 1\forgent-vF\step_3_maintenance\b_scripts\copper_price_updates.log
+[2026-07-13 17:53:18] ============================================================
+[2026-07-20 13:23:05] ============================================================
+[2026-07-20 13:23:05] Copper Price Updater
+[2026-07-20 13:23:05] ============================================================
+[2026-07-20 13:23:05] Fetching data from: https://www.cnwire.com/CopperPrice.php
+[2026-07-20 13:23:07] Found 12 months of price data on website
+[2026-07-20 13:23:08] Loading existing prices from: C:\Users\deepankar.s\Documents\Forgent_deep\Forgent\forgent-vF 1\forgent-vF\step_3_maintenance\a.mappings\copper_price_index.csv
+[2026-07-20 13:23:08] Existing CSV has 19 months
+[2026-07-20 13:23:08] 
+[2026-07-20 13:23:08] Website months: 2025-08 to 2026-06
+[2026-07-20 13:23:08] CSV months:     2025-01 to 2026-06
+[2026-07-20 13:23:08] 
+[2026-07-20 13:23:08] Comparison:
+[2026-07-20 13:23:08]   [OK] 11 months match between website and CSV
+[2026-07-20 13:23:08]   [!] 7 month(s) in CSV but not on website - website may have dropped old data
+[2026-07-20 13:23:08]   [NEW] 0 new months to add
+[2026-07-20 13:23:08] 
+[2026-07-20 13:23:08] No new months to add. CSV is up to date.
+[2026-07-20 13:23:08] Latest available: 2026-06 ($6.3223/lb)
+[2026-07-20 13:23:08] 
+[INFO] Note: July 2026 data not yet available. Monthly averages are
+       typically published in the first week after the month ends.
+[2026-07-20 13:23:08] 
+[WARNING] Website has 12 months but CSV has 19. This is expected if the
+          website uses a rolling window, but verify data integrity.
+[2026-07-20 13:23:08] 
+[2026-07-20 13:23:08] Log saved to: C:\Users\deepankar.s\Documents\Forgent_deep\Forgent\forgent-vF 1\forgent-vF\step_3_maintenance\b_scripts\copper_price_updates.log
+[2026-07-20 13:23:08] ============================================================
