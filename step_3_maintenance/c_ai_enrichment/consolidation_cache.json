@@ -748,5 +748,90 @@
     "same_product": false,
     "canonical_name": "Current Transformer 600V BIL 10kV Single-Ratio C10",
     "confidence": 1.0
+  },
+  "consol_74a4fa6edde3bff9": {
+    "same_product": true,
+    "canonical_name": "Gantry Crane Relocation Labor",
+    "confidence": 0.95
+  },
+  "consol_d5de286496933f45": {
+    "same_product": true,
+    "canonical_name": "1200A Main Bus Boot (27kV)",
+    "confidence": 0.95
+  },
+  "consol_6aac2d74ff79a761": {
+    "same_product": false,
+    "canonical_name": "Multipurpose 6061 Aluminum Square Tube",
+    "confidence": 1.0
+  },
+  "consol_8c86a0e1e351f712": {
+    "same_product": true,
+    "canonical_name": "011 Standard Thru Boots (27kV)",
+    "confidence": 0.95
+  },
+  "consol_5892e647d105ff20": {
+    "same_product": false,
+    "canonical_name": "Standard Round Stud Riser Boots",
+    "confidence": 1.0
+  },
+  "consol_3735d3f91e6d466e": {
+    "same_product": false,
+    "canonical_name": "HOT ROLLED A-36 SHEET",
+    "confidence": 1.0
+  },
+  "consol_c3326cb862bcf26d": {
+    "same_product": true,
+    "canonical_name": "K-128 Standard Thru Boots With Riser (27kV)",
+    "confidence": 0.95
+  },
+  "consol_f357b67b067ea5c3": {
+    "same_product": true,
+    "canonical_name": "024 Standard Standoff Insulator Boots - 27kV",
+    "confidence": 0.98
+  },
+  "consol_8429b44c97a06e9a": {
+    "same_product": false,
+    "canonical_name": "10GB 50 Micron OM3 Fiber Optic Cable (Variable Lengths)",
+    "confidence": 1.0
+  },
+  "consol_96b6ae4834323a2b": {
+    "same_product": false,
+    "canonical_name": "Schneider Electric ComPacT MasterPact RJ45 Communication Cable",
+    "confidence": 1.0
+  },
+  "consol_db5f6f4b9c96910a": {
+    "same_product": false,
+    "canonical_name": "CAT6 ETHERNET PATCH CABLES SNAGLESS BOOT- BLACK",
+    "confidence": 1.0
+  },
+  "consol_21899162de69b3ae": {
+    "same_product": false,
+    "canonical_name": "UL3173 SIS WIRE 12AWG 65 STRAND",
+    "confidence": 0.95
+  },
+  "consol_439f7f5288cd5e8c": {
+    "same_product": false,
+    "canonical_name": "Cat6 Shielded Patch Cables (Various Lengths/Colors)",
+    "confidence": 1.0
+  },
+  "consol_78c11835455c6112": {
+    "same_product": false,
+    "canonical_name": "SEL-C605A Serial Cable Series",
+    "confidence": 1.0
+  },
+  "consol_80231a5c125dc9dc": {
+    "same_product": true,
+    "canonical_name": "Burr ATL12 LV SWGR",
+    "confidence": 0.95
+  },
+  "consol_0e5726fcf102c913": {
+    "same_product": false,
+    "canonical_name": "Electrical Panelboard",
+    "confidence": 1.0
+  },
+  "consol_64fa668e80b2be7f": {
+    "same_product": false,
+    "canonical_name": "500kVA Three Phase Padmount Transformer",
+    "confidence": 0.95
   }
 }

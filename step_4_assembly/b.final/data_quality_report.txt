@@ -1,7 +1,7 @@
 ======================================================================
 DATA QUALITY REPORT
-Generated: 2026-08-18T21:27:54.053706
-Total Rows Checked: 87,909
+Generated: 2026-08-18T22:09:30.796565
+Total Rows Checked: 93,410
 ======================================================================
 
 --- CRITICAL CHECKS ---
@@ -12,7 +12,7 @@ Total Rows Checked: 87,909
 --- WARNING CHECKS ---
 
 [FAIL (WARNING)] Negative Quantities
-    Found 189 rows with negative quantities (received_quantity: 179; open_quantity: 10)
+    Found 189 rows with negative quantities (received_quantity: 184; open_quantity: 5)
 
 [PASS] Status Consistency (open_amount vs is_open_order)
     Found 0 rows with open_amount > 0 but is_open_order = False
@@ -40,25 +40,25 @@ Total Rows Checked: 87,909
     on_time_vs_promise_flag contains only valid OTD categories
 
 [FAIL (WARNING)] Transaction Type Overlap (Double-Count Risk)
-    Found 338 PO lines with both OPEN_ORDER and RECEIPT rows - potential double-counting risk
+    Found 412 PO lines with both OPEN_ORDER and RECEIPT rows - potential double-counting risk
     Samples:
       - EPICOR PO 128626/12.0: ['Open Orders', 'Receipts']
       - EPICOR PO 128887/7.0: ['Open Orders', 'Receipts']
       - EPICOR PO 129920/2.0: ['Open Orders', 'Receipts']
 
 [FAIL (WARNING)] High Unit Cost (>$50K)
-    Found 1619 rows with unit_cost > $50,000 - verify these are legitimate
+    Found 1909 rows with unit_cost > $50,000 - verify these are legitimate
     Samples:
       - PO P-AE0000003/1.0: unit_cost=$65,000.00
       - PO P-AE0000007/1.0: unit_cost=$99,401.00
       - PO P-AE0000007/2.0: unit_cost=$92,335.00
 
 [PASS] Unit Cost Corrections Applied
-    Applied 149 unit_cost corrections (1000x mills-to-dollars). Dollar impact: $502,619.93
+    Applied 151 unit_cost corrections (1000x mills-to-dollars). Dollar impact: $0.00
     Samples:
-      - PO 134523: $7,556.64 -> $7.56
-      - PO 134627: $420.00 -> $0.42
       - PO 121441: $5,748.74 -> $5.75
+      - PO 121442: $5,748.74 -> $5.75
+      - PO 121497: $5,748.74 -> $5.75
 
 [FAIL (WARNING)] Reporting Date Coverage
     NETSUITE: Data starts 14 days after 2024-01-01 (2024-01-15)
