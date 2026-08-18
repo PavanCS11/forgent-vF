@@ -1,4 +1,24 @@
 Raw_Name,Standardized_Name,Intercompany,Supplier_Type,Location
+IC-MGM TRANSFORMER,MGM Transformer,N,Manufacturer,USA
+Highlander Commercial Group LLC,Highlander Commercial Group,N,Service Provider,USA
+"DD&S Express, INC",DD&S Express,N,Service Provider,USA
+"P&H Auto Electric, Inc.",P&H Auto Electric,N,Service Provider,USA
+"Generator Source, LLC",Generator Source,N,Distributor,USA
+POLARIS WORLDWIDE LOGISTICS,Polaris Worldwide Logistics,N,Service Provider,USA
+"BRETCO, INC",Bretco,N,Manufacturer,USA
+"Mechanical Design Systems, Inc",Mechanical Design Systems,N,Service Provider,USA
+EBAY *Do not use*,eBay,N,Distributor,USA
+EDISON ELECTRICAL SURPLUS *Do not use*,Edison Electrical Surplus,N,Distributor,USA
+eBay *Do not use*,eBay,N,Distributor,USA
+Carter Machinery *Do not use*,Carter Machinery,N,Distributor,USA
+DB Roberts *Do not use*,DB Roberts,N,Distributor,USA
+Onlinecomponents.com *Do not use*,OnlineComponents,N,Distributor,USA
+Air Cleaning Specialists *Do not use*,Air Cleaning Specialists,N,Distributor,USA
+WOOTSUN MACHINERY & SOFTWARE SOLUTIONS,Wootsun Machinery & Software Solutions,N,Manufacturer,China
+URUK CONTROL LLC,Uruk Control,N,Service Provider,United Arab Emirates
+Leonard Petroskey,Leonard Petroskey,N,Individual,USA
+Intelligent Technologies & Services,Intelligent Technologies & Services,N,Service Provider,USA
+DeFelsko,DeFelsko,N,Manufacturer,USA
 "Keystone Acquisition Company, Inc.",Keystone Acquisition,N,Manufacturer,USA
 ComAp *DO NOT USE* (USE ComAp LLC),ComAp,N,Manufacturer,Czech Republic
 Stored Energy Solutions LLC,Stored Energy Solutions,N,Manufacturer,USA
