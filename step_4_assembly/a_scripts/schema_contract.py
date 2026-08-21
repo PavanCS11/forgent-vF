@@ -6,7 +6,11 @@ Defines the explicit pyarrow schema for the po_fact_table.parquet output.
 This ensures Power BI can load the file with correct types without any
 Table.TransformColumnTypes in Power Query.
 
-Schema Version: 2.10.0
+Schema Version: 2.13.0
+
+Version 2.12.0 Changes (2026-07-14):
+- Added item_category_l4 and item_category_l5 to carry VanTran taxonomy levels 4 and 5
+- Existing systems continue to populate levels 1-3 only; levels 4-5 remain null for NetSuite and Epicor
 
 Version 2.11.0 Changes (2026-03-11):
 - Removed expected_receipt_date: replaced by line-level join in ingestion phase
@@ -66,7 +70,7 @@ Version 2.3.0 Changes (2026-02-08):
 - Added 3-day grace period to all late delivery calculations
 - is_overdue: Flagged only if >3 days past due_date
 - on_time_vs_due_flag: "On Time" if received within (due_date - 14 days) to (due_date + 3 days)
-- on_time_vs_promise_flag: "On Time" if received within (promise_date - 14 days) to (promise_date + 3 days)
+- on_time_vs_promise_flag: "On Time" if final completion receipt <= promise_date + 3 days; "Late" after that; NULL while still open and within grace
 - days_early_late_vs_due/promise: Adjusted to subtract 3 days when late
 """
 
@@ -74,7 +78,7 @@ import pyarrow as pa
 from datetime import datetime
 
 # Schema version - increment when making breaking changes
-SCHEMA_VERSION = "2.11.0"  # NS receipt dates: line-level join replaces expected_receipt_date
+SCHEMA_VERSION = "2.13.0"  # PO-line OTD logic: no Early, final receipt, representative row
 
 
 def get_po_fact_schema() -> pa.Schema:
@@ -219,6 +223,8 @@ def get_po_fact_schema() -> pa.Schema:
         ('item_category_l1', pa.string()),
         ('item_category_l2', pa.string()),
         ('item_category_l3', pa.string()),
+        ('item_category_l4', pa.string()),
+        ('item_category_l5', pa.string()),
         ('item_raw_description', pa.string()),
         ('item_analysis_type', pa.string()),
         ('item_extraction_confidence', pa.string()),
@@ -269,12 +275,17 @@ def get_po_fact_schema() -> pa.Schema:
         ('spend_bucket', pa.string()),
         ('is_overdue', pa.bool_()),
         ('is_fully_received', pa.bool_()),
-        ('on_time_flag', pa.string()),              # Alias for on_time_vs_promise_flag (contractual OTD): "Early"/"On Time"/"Late"
-        ('on_time_vs_due_flag', pa.string()),       # 3-category vs due_date (operational): "Early"/"On Time"/"Late"
-        ('on_time_vs_promise_flag', pa.string()),   # 3-category vs promise_date (contractual OTD): "Early"/"On Time"/"Late"
-        ('days_early_late_vs_due', pa.float64()),   # receipt_date - due_date (days)
-        ('days_early_late_vs_promise', pa.float64()),  # receipt_date - promise_date (days)
-        ('is_late_or_overdue', pa.bool_()),         # TRUE if on_time_flag='Late' OR is_overdue=True
+        ('on_time_flag', pa.string()),              # Alias for on_time_vs_promise_flag: "On Time"/"Late"/NULL
+        ('on_time_vs_due_flag', pa.string()),       # Existing operational due-date classification
+        ('on_time_vs_promise_flag', pa.string()),   # Promise-based OTD: "On Time"/"Late"/NULL
+        ('days_early_late_vs_due', pa.float64()),   # Existing due-date metric
+        ('days_early_late_vs_promise', pa.float64()),  # Existing physical receipt-vs-promise metric
+        ('delta_of_promise_date_vs_receipt_date', pa.float64()),  # promise_date - final_receipt_date (days)
+        ('otd_line_key', pa.string()),              # source_system + po_number + po_line + po_release_num
+        ('final_receipt_date', pa.date32()),        # Latest receipt only when PO line is fully received
+        ('otd_is_fully_received', pa.bool_()),      # PO-line-level completion status for OTD
+        ('is_otd_representative', pa.bool_()),      # Exactly one physical row per PO line used for OTD
+        ('is_late_or_overdue', pa.bool_()),         # TRUE if OTD status is Late or row is overdue
 
         # ============================================
         # NEW: CALENDAR ATTRIBUTES (precomputed)

@@ -5,6 +5,8 @@ import json
 from datetime import datetime
 import pyarrow as pa
 import pyarrow.parquet as pq
+import re
+
 
 # Handle both relative and absolute imports
 try:
@@ -77,19 +79,15 @@ class FinalBuilder:
         (100000, float('inf'), 'Strategic (>$100K)')
     ]
 
-    # OTD classification thresholds
-    GRACE_PERIOD_DAYS = 3    # Orders delivered within 3 days after promise are "On Time"
-    EARLY_THRESHOLD_DAYS = 14  # Orders delivered more than 14 days before promise are "Early"
+    # OTD classification threshold
+    GRACE_PERIOD_DAYS = 3    # Delivered on or before promise + 3 days is On Time
     """
-    3-Category OTD Classification (per OTD Policy Document):
-    - Reference date: promise_date (unified across systems via ingestion join)
-      This is the contractual commitment date. due_date is excluded from OTD
-      scoring because it is an operational/MRP date that changes throughout PO life.
-    - "Early":   receipt_date < (promise_date - EARLY_THRESHOLD_DAYS)
-    - "On Time": (promise_date - EARLY_THRESHOLD_DAYS) <= receipt_date <= (promise_date + GRACE_PERIOD_DAYS)
-    - "Late":    receipt_date > (promise_date + GRACE_PERIOD_DAYS)
-    - Primary metric: on_time_flag / on_time_vs_promise_flag (contractual OTD)
-    - Secondary metric: on_time_vs_due_flag (operational tracking only)
+    OTD Classification (Promise Date):
+    - On Time: final completion receipt <= promise_date + GRACE_PERIOD_DAYS
+    - Late: final completion receipt > promise_date + GRACE_PERIOD_DAYS
+    - Open and not yet past promise + grace: NULL (not OTD eligible yet)
+    - Open and past promise + grace: Late
+    - OTD is evaluated once per PO line, not once per receipt transaction.
     """
 
     # Reporting date range configuration (from central config in taxonomy.py)
@@ -141,7 +139,7 @@ class FinalBuilder:
     def _validate_merge(self, df: pd.DataFrame, merge_name: str,
                         result_col: str, min_match_rate: float = 0.50) -> None:
         """Validate that a merge matched a reasonable number of rows.
-
+        After the merge, how many rows have a value in standardized_vendor_name?"
         Args:
             df: DataFrame after merge.
             merge_name: Human-readable name for logging.
@@ -177,6 +175,8 @@ class FinalBuilder:
         'Category_Level_1',
         'Category_Level_2',
         'Category_Level_3',
+        'Category_Level_4',
+        'Category_Level_5',
         'Raw_Description',
         'analysis_type',
         'extraction_confidence',
@@ -205,24 +205,34 @@ class FinalBuilder:
 
     def _apply_vendor_standardization(self, df: pd.DataFrame) -> pd.DataFrame:
         """Applies vendor name standardization and enrichment from mapping table."""
+        def _clean_text_col(col_name: str) -> pd.Series:
+            """Normalize text fields so blank-like values behave as nulls for coalescing."""
+            series = df.get(col_name, pd.Series(index=df.index, dtype='object'))
+            return (
+                series
+                .astype(str)
+                .str.strip()
+                .replace({'': np.nan, 'nan': np.nan, 'None': np.nan})
+            )
+
         if not os.path.exists(self.vendor_map_path):
-            df['standardized_vendor_name'] = df.get('vendor_name', '')
+            df['standardized_vendor_name'] = _clean_text_col('vendor_name').fillna('N/A')
             return df
 
-        df_vendor_map = pd.read_csv(self.vendor_map_path)
+        # Keep literal placeholders like 'N/A' as strings instead of auto-converting to NaN.
+        df_vendor_map = pd.read_csv(self.vendor_map_path, keep_default_na=False)
         if df_vendor_map.empty:
-            df['standardized_vendor_name'] = df.get('vendor_name', '')
+            df['standardized_vendor_name'] = _clean_text_col('vendor_name').fillna('N/A')
             return df
 
         # Clean column names
         df_vendor_map.columns = df_vendor_map.columns.str.strip()
-
         # Build list of columns to merge (Raw_Name + all available columns from VENDOR_MAP_COLUMNS)
         merge_cols = ['Raw_Name']
         for col in self.VENDOR_MAP_COLUMNS:
             if col in df_vendor_map.columns:
                 merge_cols.append(col)
-
+        print(merge_cols)
         # Merge on vendor name - include all vendor map columns
         df = pd.merge(
             df,
@@ -232,12 +242,11 @@ class FinalBuilder:
             how='left'
         )
 
-        # Coalesce: Standardized_Name > Raw_Name > vendor_name
-        df['standardized_vendor_name'] = (
-            df['Standardized_Name']
-            .fillna(df.get('Raw_Name', ''))
-            .fillna(df.get('vendor_name', ''))
-        )
+        # Coalesce by first non-empty value: Standardized_Name > Raw_Name > vendor_name > 'N/A'.
+        standardized = _clean_text_col('Standardized_Name')
+        raw_name = _clean_text_col('Raw_Name')
+        vendor_name = _clean_text_col('vendor_name')
+        df['standardized_vendor_name'] = standardized.fillna(raw_name).fillna(vendor_name).fillna('N/A')
 
         # Rename columns to snake_case for consistency
         column_renames = {
@@ -245,9 +254,22 @@ class FinalBuilder:
             'Supplier_Type': 'supplier_type',
             'Location': 'vendor_location',
         }
+
         for old_col, new_col in column_renames.items():
             if old_col in df.columns:
-                df.rename(columns={old_col: new_col}, inplace=True)
+                df.rename(columns={old_col: new_col}, inplace=True)  # When you use inplace=True, the function modifies your original data frame directly and returns nothing (None)
+
+        # Safeguard: ensure N/A vendor rows are retained by Intercompany='N' filters.
+        if 'intercompany' not in df.columns:
+            df['intercompany'] = ''
+        intercompany_blank = df['intercompany'].astype(str).str.strip().isin(['', 'nan', 'None'])
+        na_vendor_mask = (
+            _clean_text_col('vendor_name').fillna('').str.upper().eq('N/A') |
+            _clean_text_col('standardized_vendor_name').fillna('').str.upper().eq('N/A')
+        )
+        fill_mask = intercompany_blank & na_vendor_mask
+        if fill_mask.any():
+            df.loc[fill_mask, 'intercompany'] = 'N'
 
         # Drop helper columns used for join
         df.drop(columns=['Raw_Name', 'Standardized_Name'], inplace=True, errors='ignore')
@@ -290,16 +312,19 @@ class FinalBuilder:
 
     def _dedup_item_map(self, df_item_map: pd.DataFrame, merge_cols: list) -> pd.DataFrame:
         """Quality-aware deduplication of item_map before merge.
-
+        
         For duplicate Item_IDs, keeps the row with the highest quality score:
         non-Miscellaneous categories, non-MDO placeholders, higher confidence,
         and more complete spec data are preferred.
         """
-        import re
 
         df = df_item_map[merge_cols].copy()
 
-        if not df['Item_ID'].duplicated().any():
+        dedup_keys = ['Item_ID']
+        if 'source_system' in df.columns:
+            dedup_keys.append('source_system')
+
+        if not df.duplicated(subset=dedup_keys).any():
             return df  # No duplicates, fast path
 
         df['_quality'] = 0
@@ -329,48 +354,73 @@ class FinalBuilder:
 
         # Sort by quality descending, then keep first (highest quality) per Item_ID
         df = df.sort_values('_quality', ascending=False)
-        df = df.drop_duplicates(subset=['Item_ID'], keep='first')
+        df = df.drop_duplicates(subset=dedup_keys, keep='first')
         df = df.drop(columns=['_quality'])
 
         return df
 
     def _resolve_category_conflicts(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Resolve category conflicts for items with the same standardized item_id.
-
-        After item_id is standardized to MPN, multiple rows for the same product
-        may have different categories (because different Internal IDs matched
-        different item_map entries). This aligns all rows to the majority category.
         """
-        if 'item_category_l1' not in df.columns or 'item_id' not in df.columns:
+        Resolve category conflicts for items with the same standardized item_id.
+    
+        NetSuite and EPICOR share category mappings.
+        SYTELINE (and any other ERP) resolves conflicts independently.
+        """
+        if (
+            'item_category_l1' not in df.columns or
+            'item_id' not in df.columns or
+            'source_system' not in df.columns
+        ):
             return df
 
-        cat_cols = ['item_category_l1', 'item_category_l2', 'item_category_l3']
+        cat_cols = [
+        'item_category_l1',
+        'item_category_l2',
+        'item_category_l3',
+        'item_category_l4',
+        'item_category_l5'
+        ]
 
-        # Find items with inconsistent categories
-        cat_by_item = df.groupby('item_id')['item_category_l1'].nunique()
-        inconsistent_ids = cat_by_item[cat_by_item > 1].index
+        # NETSUITE and EPICOR share categories.
+        # Other ERPs (e.g. SYTELINE) keep their own categories.
+        df['_category_group'] = np.where(
+            df['source_system'].isin(['NETSUITE', 'EPICOR']),
+            'GENERIC',
+            df['source_system']
+        )
 
-        if len(inconsistent_ids) == 0:
+        # Find groups with conflicting categories
+        cat_by_item = (
+            df.groupby(['item_id', '_category_group'])['item_category_l1']
+            .nunique()
+        )
+    
+        inconsistent_groups = cat_by_item[cat_by_item > 1].index
+    
+        if len(inconsistent_groups) == 0:
+            df.drop(columns=['_category_group'], inplace=True, errors='ignore')
             return df
 
-        print(f"  Resolving Category Conflicts...")
+        print("  Resolving Category Conflicts...")
         fixed_count = 0
 
-        for item_id in inconsistent_ids:
-            mask = df['item_id'] == item_id
+        for item_id, category_group in inconsistent_groups:
+
+            mask = (
+                (df['item_id'] == item_id) &
+                (df['_category_group'] == category_group)
+            )
+
             group = df.loc[mask]
 
-            # Pick the majority category (most rows), excluding Uncategorized
+            # Ignore Uncategorized when determining the winning category
             real_cats = group[group['item_category_l1'] != 'Uncategorized']
             if real_cats.empty:
                 continue
 
-            # Count by L1 category, pick the most common
             best_l1 = real_cats['item_category_l1'].mode().iloc[0]
-            best_rows = real_cats[real_cats['item_category_l1'] == best_l1]
-            best_row = best_rows.iloc[0]
+            best_row = real_cats[real_cats['item_category_l1'] == best_l1].iloc[0]
 
-            # Apply the winning category to all rows for this item
             for col in cat_cols:
                 df.loc[mask, col] = best_row[col]
 
@@ -379,20 +429,41 @@ class FinalBuilder:
         if fixed_count > 0:
             print(f"    Aligned categories for {fixed_count:,} items with conflicting categorizations")
 
+        # Remove temporary helper column
+        df.drop(columns=['_category_group'], inplace=True, errors='ignore')
+
         return df
+
 
     def _apply_item_categorization(self, df: pd.DataFrame) -> pd.DataFrame:
         """Applies item category mapping and enrichment from mapping table."""
+        def _fill_category_defaults(frame: pd.DataFrame) -> pd.DataFrame:
+            """Normalize empty lower-level categories to literal N/A for reporting."""
+            for col in ['item_category_l2', 'item_category_l3', 'item_category_l4', 'item_category_l5']:
+                if col in frame.columns:
+                    frame[col] = (
+                        frame[col]
+                        .replace({'': 'N/A', 'nan': 'N/A', 'None': 'N/A'})
+                        .fillna('N/A')
+                    )
+                else:
+                    frame[col] = 'N/A'
+            if 'item_category_l1' not in frame.columns:
+                frame['item_category_l1'] = 'Uncategorized'
+            return frame
+
         if not os.path.exists(self.item_map_path):
             df['category'] = 'Uncategorized'
             df['sub_category'] = ''
-            return df
+            df['item_category_l1'] = 'Uncategorized'
+            return _fill_category_defaults(df)
 
         df_item_map = pd.read_csv(self.item_map_path)
         if df_item_map.empty:
             df['category'] = 'Uncategorized'
             df['sub_category'] = ''
-            return df
+            df['item_category_l1'] = 'Uncategorized'
+            return _fill_category_defaults(df)
 
         # Clean column names
         df_item_map.columns = df_item_map.columns.str.strip()
@@ -402,6 +473,14 @@ class FinalBuilder:
             df['item_id'] = df['item_id'].astype(str)
         if 'Item_ID' in df_item_map.columns:
             df_item_map['Item_ID'] = df_item_map['Item_ID'].astype(str)
+
+        has_source_key = 'source_system' in df.columns and 'source_system' in df_item_map.columns
+        if has_source_key:
+            df['source_system'] = df['source_system'].astype(str).str.strip()
+            df_item_map['source_system'] = df_item_map['source_system'].astype(str).str.strip()
+
+        # Generic mappings (blank source_system) are allowed only for selected sources.
+        generic_fallback_sources = {'NETSUITE', 'EPICOR'}
 
         # Build list of columns to merge (Item_ID + all available columns from ITEM_MAP_COLUMNS)
         merge_cols = ['Item_ID']
@@ -414,6 +493,8 @@ class FinalBuilder:
             'Category_Level_1': 'item_category_l1',
             'Category_Level_2': 'item_category_l2',
             'Category_Level_3': 'item_category_l3',
+            'Category_Level_4': 'item_category_l4',
+            'Category_Level_5': 'item_category_l5',
             'Raw_Description': 'item_raw_description',
             'analysis_type': 'item_analysis_type',
             'extraction_confidence': 'item_extraction_confidence',
@@ -443,7 +524,21 @@ class FinalBuilder:
 
         if 'item_id' in df.columns and len(merge_cols) > 1:
             # Quality-aware dedup: best categorization wins (not just first row)
-            item_map_dedup = self._dedup_item_map(df_item_map, merge_cols)
+            dedup_cols = merge_cols + (['source_system'] if has_source_key else [])
+            
+            item_map_dedup = self._dedup_item_map(df_item_map, dedup_cols)
+
+            generic_item_map = None
+            generic_source_mask = pd.Series([False] * len(df), index=df.index)
+            if has_source_key:
+                src_upper = df['source_system'].astype(str).str.upper().str.strip()
+                generic_source_mask = src_upper.isin(generic_fallback_sources)
+                generic_map_mask = item_map_dedup['source_system'].isna() | (
+                    item_map_dedup['source_system'].astype(str).str.strip() == ''
+                )
+                generic_item_map = item_map_dedup.loc[generic_map_mask].copy()
+                if 'source_system' in generic_item_map.columns:
+                    generic_item_map.drop(columns=['source_system'], inplace=True)
 
             # Detect sci-notation IDs (ambiguous, many real IDs collapsed to same string)
             import re
@@ -455,15 +550,49 @@ class FinalBuilder:
                 ]
             )
 
-            # Pass 1: Merge on item_id (works for EPICOR where item_id = item name)
-            df = pd.merge(
-                df,
-                item_map_dedup,
-                left_on='item_id',
-                right_on='Item_ID',
-                how='left',
-                suffixes=('', '_map')
-            )
+            if has_source_key:
+                df = pd.merge(
+                    df,
+                    item_map_dedup,
+                    left_on=['item_id', 'source_system'],
+                    right_on=['Item_ID', 'source_system'],
+                    how='left',
+                    suffixes=('', '_map')
+                )
+
+
+                # Fallback pass: allow blank-source item_map matches for NETSUITE/EPICOR only.
+                if generic_item_map is not None and not generic_item_map.empty and generic_source_mask.any():
+                    pass1_generic_candidates = generic_source_mask & df['Item_ID'].isna()
+                    if pass1_generic_candidates.any():
+                        fallback_keys = df.loc[pass1_generic_candidates, ['item_id']].copy()
+                        fallback_keys['_orig_idx'] = fallback_keys.index
+                        fallback_matches = pd.merge(
+                            fallback_keys,
+                            generic_item_map,
+                            left_on='item_id',
+                            right_on='Item_ID',
+                            how='left'
+                        ).set_index('_orig_idx')
+
+                        for col in merge_cols:
+                            if col == 'Item_ID':
+                                continue
+                            if col in df.columns and col in fallback_matches.columns:
+                                is_null_or_empty = df[col].isna() | (df[col].astype(str).str.strip() == '')
+                                has_new_value = fallback_matches[col].notna()
+                                fill_mask = pass1_generic_candidates & is_null_or_empty & has_new_value
+                                if fill_mask.any():
+                                    df.loc[fill_mask, col] = fallback_matches.loc[fill_mask, col]
+            else:
+                df = pd.merge(
+                    df,
+                    item_map_dedup,
+                    left_on='item_id',
+                    right_on='Item_ID',
+                    how='left',
+                    suffixes=('', '_map')
+                )
 
             # For rows that matched an ambiguous sci-notation ID, clear Pass 1 results
             # so Pass 2 (item_name_mpn match) can find the correct categorization
@@ -493,16 +622,50 @@ class FinalBuilder:
 
                 if needs_pass2_count > 0:
                     # Merge item_name_mpn against Item_ID for rows needing pass 2
-                    df_needs_pass2_keys = df.loc[needs_pass2, ['item_name_mpn']].copy()
-                    df_needs_pass2_keys['_orig_idx'] = df_needs_pass2_keys.index
+                    pass2_key_cols = ['item_name_mpn'] + (['source_system'] if has_source_key else [])
 
-                    df_matched_by_name = pd.merge(
-                        df_needs_pass2_keys,
-                        item_map_dedup,
-                        left_on='item_name_mpn',
-                        right_on='Item_ID',
-                        how='left'
-                    ).set_index('_orig_idx')
+                    df_needs_pass2_keys = df.loc[needs_pass2, pass2_key_cols].copy()
+
+                    df_needs_pass2_keys['_orig_idx'] = df_needs_pass2_keys.index
+                
+                    if has_source_key:
+                        df_matched_by_name = pd.merge(
+                            df_needs_pass2_keys,
+                            item_map_dedup,
+                            left_on=['item_name_mpn', 'source_system'],
+                            right_on=['Item_ID', 'source_system'],
+                            how='left'
+                        ).set_index('_orig_idx')
+
+
+                        # Generic fallback for pass 2 (item_name_mpn), only for NETSUITE/EPICOR rows.
+                        if generic_item_map is not None and not generic_item_map.empty:
+                            pass2_generic_candidates = needs_pass2 & generic_source_mask
+                            if pass2_generic_candidates.any():
+                                fallback_name_keys = df.loc[pass2_generic_candidates, ['item_name_mpn']].copy()
+                                fallback_name_keys['_orig_idx'] = fallback_name_keys.index
+                                fallback_name_matches = pd.merge(
+                                    fallback_name_keys,
+                                    generic_item_map,
+                                    left_on='item_name_mpn',
+                                    right_on='Item_ID',
+                                    how='left'
+                                ).set_index('_orig_idx')
+
+                                for col in merge_cols:
+                                    if col == 'Item_ID':
+                                        continue
+                                    if col in df_matched_by_name.columns and col in fallback_name_matches.columns:
+                                        source_null = df_matched_by_name[col].isna() | (df_matched_by_name[col].astype(str).str.strip() == '')
+                                        df_matched_by_name.loc[source_null, col] = fallback_name_matches.loc[source_null, col]
+                    else:
+                        df_matched_by_name = pd.merge(
+                            df_needs_pass2_keys,
+                            item_map_dedup,
+                            left_on='item_name_mpn',
+                            right_on='Item_ID',
+                            how='left'
+                        ).set_index('_orig_idx')
 
                     # Only update columns where Pass 1 left nulls (don't overwrite good data)
                     # This prevents conflicting item_map entries from overwriting correct categories
@@ -531,8 +694,7 @@ class FinalBuilder:
 
         # Fill defaults for category columns
         df['item_category_l1'] = df.get('item_category_l1', pd.Series(['Uncategorized'] * len(df))).fillna('Uncategorized')
-        df['item_category_l2'] = df.get('item_category_l2', pd.Series([''] * len(df))).fillna('')
-        df['item_category_l3'] = df.get('item_category_l3', pd.Series([''] * len(df))).fillna('')
+        df = _fill_category_defaults(df)
 
         # Post-merge diagnostics and validation
         categorized = (df['item_category_l1'] != 'Uncategorized')
@@ -607,6 +769,7 @@ class FinalBuilder:
             mask = still_needs & has_source
 
             replaced_count = mask.sum()
+            print(mask)
             if replaced_count > 0:
                 df.loc[mask, 'item_description'] = df.loc[mask, source_col]
                 print(f"    Filled {replaced_count:,} descriptions from {source_name}")
@@ -677,6 +840,83 @@ class FinalBuilder:
         print(f"    Built item_name for {filled:,} / {len(df):,} rows")
         for src, count in source_counts.items():
             print(f"      from {src}: {count:,}")
+
+        return df
+
+    def _fill_blank_item_ids_for_reporting(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Replace blank item_id values with literal N/A for reporting and slicers."""
+        if 'item_id' not in df.columns:
+            return df
+
+        blank_mask = df['item_id'].isna() | (df['item_id'].astype(str).str.strip() == '')
+        blank_count = blank_mask.sum()
+        if blank_count > 0:
+            df.loc[blank_mask, 'item_id'] = 'N/A'
+            print(f"    Replaced {blank_count:,} blank item_id values with N/A for reporting")
+
+        return df
+
+    def _fill_blank_po_numbers_for_reporting(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Replace blank po_number values with literal N/A for reporting and joins."""
+        if 'po_number' not in df.columns:
+            return df
+
+        po_number_normalized = df['po_number'].astype(str).str.strip()
+        blank_mask = (
+            df['po_number'].isna() |
+            po_number_normalized.isin(['', 'nan', 'None'])
+        )
+        blank_count = blank_mask.sum()
+        if blank_count > 0:
+            df.loc[blank_mask, 'po_number'] = 'N/A'
+            print(f"    Replaced {blank_count:,} blank po_number values with N/A for reporting")
+
+        return df
+
+    def _fill_blank_item_labels_for_reporting(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Set item_name/item_short_name to N/A when all source description fields are blank."""
+        source_cols = [
+            'item_description',
+            'item_display_name',
+            'item_name_mpn',
+            'line_description',
+        ]
+
+        present_source_cols = [c for c in source_cols if c in df.columns]
+        if not present_source_cols:
+            return df
+
+        all_sources_blank = pd.Series(True, index=df.index)
+        for col in present_source_cols:
+            all_sources_blank &= (
+                df[col].isna() |
+                (df[col].astype(str).str.strip() == '') |
+                (df[col].astype(str).str.lower() == 'nan')
+            )
+
+        if 'item_name' in df.columns:
+            name_blank = (
+                df['item_name'].isna() |
+                (df['item_name'].astype(str).str.strip() == '') |
+                (df['item_name'].astype(str).str.lower() == 'nan')
+            )
+            fill_name_mask = all_sources_blank & name_blank
+            fill_name_count = fill_name_mask.sum()
+            if fill_name_count > 0:
+                df.loc[fill_name_mask, 'item_name'] = 'N/A'
+                print(f"    Replaced {fill_name_count:,} blank item_name values with N/A for reporting")
+
+        if 'item_short_name' in df.columns:
+            short_blank = (
+                df['item_short_name'].isna() |
+                (df['item_short_name'].astype(str).str.strip() == '') |
+                (df['item_short_name'].astype(str).str.lower() == 'nan')
+            )
+            fill_short_mask = all_sources_blank & short_blank
+            fill_short_count = fill_short_mask.sum()
+            if fill_short_count > 0:
+                df.loc[fill_short_mask, 'item_short_name'] = 'N/A'
+                print(f"    Replaced {fill_short_count:,} blank item_short_name values with N/A for reporting")
 
         return df
 
@@ -896,123 +1136,210 @@ class FinalBuilder:
         return df
 
     def _add_status_flags(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Adds status flags: is_overdue, is_fully_received."""
-        today = pd.Timestamp.now().normalize()
+        """Adds status flags using the promise-date + grace-period rule."""
 
-        # is_overdue uses the contractual promise date (per OTD policy),
-        # with fallback: promise_date > due_date
-        effective_promise = None
-        if 'promise_date' in df.columns:
-            effective_promise = df['promise_date'].copy()
-        if effective_promise is not None and 'due_date' in df.columns:
-            effective_promise = effective_promise.fillna(df['due_date'])
-        elif effective_promise is None and 'due_date' in df.columns:
-            effective_promise = df['due_date'].copy()
-
-        if effective_promise is not None:
-            qty_open = df.get('open_quantity', pd.Series([0] * len(df))).fillna(0)
-            # Apply grace period: overdue only if past (effective_promise + grace_period)
-            grace_adjusted = effective_promise + pd.Timedelta(days=self.GRACE_PERIOD_DAYS)
-            df['is_overdue'] = (grace_adjusted < today) & (qty_open > 0)
+        # Use analysis_date as the reporting/as-of date when it is available.
+        # Fall back to the current date only if analysis_date has not been computed.
+        if 'analysis_date' in df.columns:
+            as_of_date = pd.to_datetime(df['analysis_date'], errors='coerce')
         else:
-            df['is_overdue'] = False
+            as_of_date = pd.Series(pd.Timestamp.now().normalize(), index=df.index)
+
+        promise = (
+            pd.to_datetime(df['promise_date'], errors='coerce')
+            if 'promise_date' in df.columns
+            else pd.Series(pd.NaT, index=df.index)
+        )
 
         if 'open_quantity' in df.columns:
-            df['is_fully_received'] = df['open_quantity'].fillna(0) <= 0
+            qty_open = pd.to_numeric(df['open_quantity'], errors='coerce').fillna(0)
+        else:
+            qty_open = pd.Series(0, index=df.index, dtype='float64')
+
+        # Open orders are overdue only after promise_date + 3 days.
+        # Do not fall back to due_date for the contractual OTD rule.
+        grace_boundary = promise + pd.Timedelta(days=self.GRACE_PERIOD_DAYS)
+        df['is_overdue'] = (
+            promise.notna()
+            & as_of_date.notna()
+            & (as_of_date > grace_boundary)
+            & (qty_open > 0)
+        )
+
+        # Preserve the existing row-level is_fully_received field.
+        # The new OTD-specific completion status is calculated separately at PO-line grain.
+        if 'open_quantity' in df.columns:
+            df['is_fully_received'] = pd.to_numeric(
+                df['open_quantity'], errors='coerce'
+            ).fillna(0) <= 0
         elif 'total_quantity' in df.columns and 'received_quantity' in df.columns:
-            df['is_fully_received'] = df['received_quantity'].fillna(0) >= df['total_quantity'].fillna(0)
+            total_qty = pd.to_numeric(df['total_quantity'], errors='coerce').fillna(0)
+            received_qty = pd.to_numeric(df['received_quantity'], errors='coerce').fillna(0)
+            df['is_fully_received'] = received_qty >= total_qty
         else:
             df['is_fully_received'] = None
 
         return df
 
     def _add_otd_metrics(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Adds on-time delivery metrics per OTD Policy Document.
+        """Calculate one OTD result per PO line without changing fact-table grain.
 
-        Primary OTD metric uses the contractual promise date (unified across systems).
-        Due date is excluded from OTD scoring — it is an operational/MRP date
-        that changes throughout PO life and would mask late deliveries.
+        Physical Receipt/Open Order rows are preserved. No synthetic rows are created.
+        For each PO line, an existing Open Order row is the OTD representative while
+        the line is incomplete; once fully received, the latest existing receipt row
+        is the OTD representative.
         """
+        key_cols = ['source_system', 'po_number', 'po_line', 'po_release_num']
+        for col in key_cols:
+            if col not in df.columns:
+                df[col] = ''
 
-        def _classify_otd(receipt_date, reference_date):
-            """Classify deliveries as 'Early', 'On Time', or 'Late'.
-            Grace period: 14 days early, 3 days late.
-            """
-            both_present = receipt_date.notna() & reference_date.notna()
-            early_boundary = reference_date - pd.Timedelta(days=self.EARLY_THRESHOLD_DAYS)
-            late_boundary = reference_date + pd.Timedelta(days=self.GRACE_PERIOD_DAYS)
+        for col in ['promise_date', 'receipt_date', 'analysis_date']:
+            if col in df.columns:
+                df[col] = pd.to_datetime(df[col], errors='coerce')
 
-            result = pd.Series(None, index=df.index, dtype='object')
-            result[both_present & (receipt_date < early_boundary)] = 'Early'
-            result[both_present & (receipt_date >= early_boundary) & (receipt_date <= late_boundary)] = 'On Time'
-            result[both_present & (receipt_date > late_boundary)] = 'Late'
-            return result
+        key_frame = df[key_cols].copy().fillna('')
+        for col in key_cols:
+            key_frame[col] = key_frame[col].astype(str).str.strip()
+        df['otd_line_key'] = key_frame.astype(str).agg('|'.join, axis=1)
 
-        # ── Effective promise date (contractual commitment) ──
-        # promise_date is unified at ingestion: NS Receipts via PO Line Dates join, Epicor direct
-        effective_promise = df['promise_date'].copy() if 'promise_date' in df.columns else None
+        df['final_receipt_date'] = pd.NaT
+        df['delta_of_promise_date_vs_receipt_date'] = np.nan
+        df['otd_is_fully_received'] = False
+        df['is_otd_representative'] = False
+        df['on_time_vs_promise_flag'] = None
+        df['on_time_flag'] = None
 
-        # ── Effective due date (operational/MRP) ──
-        # Fallback chain: due_date > promise_date
-        effective_due = df['due_date'].copy() if 'due_date' in df.columns else None
-        if effective_due is not None and 'promise_date' in df.columns:
-            effective_due = effective_due.fillna(df['promise_date'])
+        if df.empty:
+            return df
 
-        # ── OTD vs Promise Date (PRIMARY — contractual OTD) ──
-        if 'receipt_date' in df.columns and effective_promise is not None:
-            df['on_time_vs_promise_flag'] = _classify_otd(df['receipt_date'], effective_promise)
-        else:
-            df['on_time_vs_promise_flag'] = None
+        tt = df.get('transaction_type', pd.Series('', index=df.index)).astype(str).str.strip().str.lower()
+        is_receipt = tt.eq('receipts')
+        is_open = tt.eq('open orders')
 
-        # ── OTD vs Due Date (SECONDARY — operational tracking) ──
-        if 'receipt_date' in df.columns and effective_due is not None:
-            df['on_time_vs_due_flag'] = _classify_otd(df['receipt_date'], effective_due)
+        def num_col(name):
+            return pd.to_numeric(df[name], errors='coerce') if name in df.columns else pd.Series(np.nan, index=df.index)
+
+        open_qty = num_col('open_quantity')
+        total_qty = num_col('total_quantity')
+        received_qty = num_col('received_quantity').fillna(0)
+
+        for key, idx in df.groupby('otd_line_key', sort=False).groups.items():
+            idx = list(idx)
+            g = df.loc[idx]
+            receipt_idx = [i for i in idx if is_receipt.loc[i] and pd.notna(df.at[i, 'receipt_date'])]
+            open_idx = [i for i in idx if is_open.loc[i]]
+
+            # Existing Open Order row, if present, is authoritative for current open qty.
+            existing_open_qty = open_qty.loc[open_idx].dropna() if open_idx else pd.Series(dtype=float)
+            if len(existing_open_qty):
+                remaining_qty = float(existing_open_qty.max())
+                fully_received = remaining_qty <= 0
+            else:
+                # For partial receipts where no Open Order row exists, derive only the
+                # completion state from existing quantities. Do NOT create a new row.
+                ordered_values = total_qty.loc[idx].dropna()
+                ordered_qty = float(ordered_values.max()) if len(ordered_values) else np.nan
+                received_total = float(received_qty.loc[receipt_idx].sum()) if receipt_idx else 0.0
+                if pd.notna(ordered_qty):
+                    remaining_qty = ordered_qty - received_total
+                    fully_received = remaining_qty <= 0
+                else:
+                    # If ordered quantity is unavailable, a receipt-only line cannot
+                    # safely be declared partial; preserve existing row semantics.
+                    fully_received = bool(receipt_idx)
+                    remaining_qty = np.nan
+
+            promise_values = pd.to_datetime(g['promise_date'], errors='coerce').dropna()
+            promise_date = promise_values.max() if len(promise_values) else pd.NaT
+
+            final_receipt = pd.NaT
+            representative_idx = None
+
+            # IMPORTANT OTD representative rule:
+            #   - If the PO line is still open/partial, the EXISTING Open Order
+            #     row represents the OTD item. Receipt rows are never the OTD
+            #     representative while the line is incomplete.
+            #   - If the PO line is fully received, the latest receipt row
+            #     represents the OTD item. Any existing Open Order row is 0.
+            #   - No synthetic rows are created. If an incomplete line has no
+            #     existing Open Order row, there is no row we can mark as the
+            #     representative; this is intentionally surfaced rather than
+            #     incorrectly assigning OTD to a receipt row.
+            if fully_received:
+                if receipt_idx:
+                    receipt_dates = pd.to_datetime(df.loc[receipt_idx, 'receipt_date'], errors='coerce')
+                    max_receipt = receipt_dates.max()
+                    candidates = receipt_dates[receipt_dates == max_receipt].index.tolist()
+                    representative_idx = candidates[-1]
+                    final_receipt = max_receipt
+            else:
+                if open_idx:
+                    representative_idx = open_idx[-1]
+
+            # OTD status: representative PO-line result only, then stamp it to all
+            # physical rows so Power BI can filter to is_otd_representative = 1.
+            status = None
+            delta = np.nan
+            if pd.notna(promise_date):
+                boundary = promise_date + pd.Timedelta(days=self.GRACE_PERIOD_DAYS)
+                if fully_received and pd.notna(final_receipt):
+                    status = 'On Time' if final_receipt <= boundary else 'Late'
+                    delta = (promise_date - final_receipt).days
+                else:
+                    # No final receipt yet. Use analysis_date as the reporting/as-of date.
+                    analysis_values = pd.to_datetime(g['analysis_date'], errors='coerce').dropna() if 'analysis_date' in g.columns else pd.Series(dtype='datetime64[ns]')
+                    if len(analysis_values) and analysis_values.max() > boundary:
+                        status = 'Late'
+                    else:
+                        status = None
+
+            df.loc[idx, 'otd_is_fully_received'] = fully_received
+            df.loc[idx, 'final_receipt_date'] = final_receipt
+            df.loc[idx, 'delta_of_promise_date_vs_receipt_date'] = delta
+
+            # Only the representative row carries the OTD status. This keeps
+            # the physical receipt/open-order rows intact while ensuring there
+            # is exactly one OTD result per PO line in Power BI.
+            if representative_idx is not None:
+                df.at[representative_idx, 'is_otd_representative'] = True
+
+            # Populate the PO-line OTD status on all physical rows.
+            df.at[representative_idx, 'on_time_vs_promise_flag'] = status
+            df.at[representative_idx, 'on_time_flag'] = status
+
+        # Keep Due Date operational classification unchanged. Early may still exist here;
+        # Early is removed only from Promise-Date OTD.
+        if 'receipt_date' in df.columns and 'due_date' in df.columns:
+            receipt_dt = pd.to_datetime(df['receipt_date'], errors='coerce')
+            due_dt = pd.to_datetime(df['due_date'], errors='coerce')
+            both = receipt_dt.notna() & due_dt.notna()
+            early_boundary = due_dt - pd.Timedelta(days=14)
+            late_boundary = due_dt + pd.Timedelta(days=self.GRACE_PERIOD_DAYS)
+            due_result = pd.Series(None, index=df.index, dtype='object')
+            due_result[both & (receipt_dt < early_boundary)] = 'Early'
+            due_result[both & (receipt_dt >= early_boundary) & (receipt_dt <= late_boundary)] = 'On Time'
+            due_result[both & (receipt_dt > late_boundary)] = 'Late'
+            df['on_time_vs_due_flag'] = due_result
         else:
             df['on_time_vs_due_flag'] = None
 
-        # ── Days Early/Late vs Promise Date (PRIMARY) ──
-        if 'receipt_date' in df.columns and effective_promise is not None:
-            receipt_dt = pd.to_datetime(df['receipt_date'], errors='coerce')
-            promise_dt = pd.to_datetime(effective_promise, errors='coerce')
-            raw_days_vs_promise = (receipt_dt - promise_dt).dt.days
-            df['days_early_late_vs_promise'] = np.where(
-                receipt_dt.notna() & promise_dt.notna(),
-                np.where(
-                    raw_days_vs_promise > 0,
-                    raw_days_vs_promise - self.GRACE_PERIOD_DAYS,
-                    raw_days_vs_promise
-                ),
-                None
+        # Operational overdue flag: only an actually open quantity can be overdue.
+        if 'open_quantity' in df.columns:
+            oq = pd.to_numeric(df['open_quantity'], errors='coerce').fillna(0)
+            promise = pd.to_datetime(df.get('promise_date'), errors='coerce')
+            analysis = pd.to_datetime(df.get('analysis_date'), errors='coerce')
+            df['is_overdue'] = (
+                promise.notna() & analysis.notna() & (oq > 0) &
+                (analysis > promise + pd.Timedelta(days=self.GRACE_PERIOD_DAYS))
             )
         else:
-            df['days_early_late_vs_promise'] = None
+            df['is_overdue'] = False
 
-        # ── Days Early/Late vs Due Date (SECONDARY) ──
-        if 'receipt_date' in df.columns and effective_due is not None:
-            receipt_dt = pd.to_datetime(df['receipt_date'], errors='coerce')
-            due_dt = pd.to_datetime(effective_due, errors='coerce')
-            raw_days_vs_due = (receipt_dt - due_dt).dt.days
-            df['days_early_late_vs_due'] = np.where(
-                receipt_dt.notna() & due_dt.notna(),
-                np.where(
-                    raw_days_vs_due > 0,
-                    raw_days_vs_due - self.GRACE_PERIOD_DAYS,
-                    raw_days_vs_due
-                ),
-                None
-            )
-        else:
-            df['days_early_late_vs_due'] = None
-
-        # on_time_flag = primary OTD metric (promise-based, per OTD policy)
-        df['on_time_flag'] = df['on_time_vs_promise_flag']
-
-        # Unified late/overdue flag: TRUE if either historically late OR currently overdue
         df['is_late_or_overdue'] = (
-            (df['on_time_flag'] == 'Late') |               # Historical: received late
-            (df['is_overdue'].fillna(False) == True)        # Current: overdue now
+            (df['on_time_vs_promise_flag'] == 'Late') |
+            df['is_overdue'].fillna(False).astype(bool)
         )
-
         return df
 
     def _add_calculated_metrics(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -1025,9 +1352,6 @@ class FinalBuilder:
             df['spend_bucket'] = self._categorize_spend(df['open_plus_received_amount'])
         else:
             df['spend_bucket'] = 'Unknown'
-
-        df = self._add_status_flags(df)
-        df = self._add_otd_metrics(df)
 
         return df
 
@@ -1197,6 +1521,7 @@ class FinalBuilder:
         # The new amount columns (open_amount, received_amount, etc.) are calculated later
         currency_cols = ['extended_amount', 'unit_cost', 'calculated_price']
         for col in currency_cols:
+            # the currecny columns are float so it will not go into inside if statement
             if col in df.columns and df[col].dtype == 'object':
                 df[col] = (
                     df[col]
@@ -1231,6 +1556,7 @@ class FinalBuilder:
             'item_spec_poles', 'item_spec_kaic', 'item_spec_frame', 'item_spec_kva',
             'item_spec_gauge', 'item_spec_nema'
         ]
+        #spec cols are not there in staging, it will come from master files later
         for col in spec_cols:
             if col in df.columns:
                 # Convert to string, replacing NaN with empty string for clean Parquet export
@@ -1327,19 +1653,28 @@ class FinalBuilder:
 
     def _compute_analysis_date(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        Compute analysis_date based on order status.
-        Moves this logic from Power Query into ETL.
+          Compute analysis_date based on order status.
+      
+          Default Logic
+          -------------
+          Open Orders:
+              due_date -> promise_date -> order_date
+      
+          Closed Orders:
+              receipt_date -> due_date -> order_date
+      
+          NETSUITE_VANTRAN / SYTELINE
+          ---------------------------
+          Open Orders:
+              order_date -> due_date -> promise_date
+      
+          Closed Orders:
+              receipt_date -> due_date -> order_date
+      
+          No max_file_date adjustment is applied for
+          NETSUITE_VANTRAN / SYTELINE.
+    """
 
-        Business Logic:
-        - If is_open_order = True:
-            analysis_date = COALESCE(due_date, promise_date, order_date)
-        - Else (closed/receipt):
-            analysis_date = COALESCE(receipt_date, due_date, order_date)
-
-        Also adds:
-        - analysis_date_source: which field was used
-        - analysis_date_is_fallback: True if order_date was used as last resort
-        """
         print("  Computing Analysis Date...")
 
         # Initialize columns
@@ -1347,80 +1682,147 @@ class FinalBuilder:
         df['analysis_date_source'] = None
         df['analysis_date_is_fallback'] = False
 
-        date_cols = ['due_date', 'promise_date', 'old_promise_date', 'receipt_date', 'order_date']
+        date_cols = [
+            'due_date',
+            'promise_date',
+            'old_promise_date',
+            'receipt_date',
+            'order_date'
+        ]
+
         for col in date_cols:
             if col in df.columns:
                 df[col] = pd.to_datetime(df[col], errors='coerce')
 
-        # Handle is_open_order - convert to boolean if needed
+        # Handle is_open_order
         is_open = df['is_open_order']
         if is_open.dtype == 'object':
             is_open = is_open.astype(str).str.lower().isin(['true', '1', 'yes'])
         else:
             is_open = is_open.fillna(False).astype(bool)
 
-        # --- Open orders: due_date > promise_date > order_date ---
-        open_mask = is_open
+        # ------------------------------------------------------------------
+        # Source System Masks
+        # ------------------------------------------------------------------
 
-        # Start with order_date as fallback
-        df.loc[open_mask & df['order_date'].notna(), 'analysis_date'] = df.loc[open_mask & df['order_date'].notna(), 'order_date']
-        df.loc[open_mask & df['order_date'].notna(), 'analysis_date_source'] = 'order_date'
-        df.loc[open_mask & df['order_date'].notna(), 'analysis_date_is_fallback'] = True
+        special_sources = ['NETSUITE_VANTRAN', 'SYTELINE']
 
-        # Override with promise_date if available
-        promise_mask = open_mask & df['promise_date'].notna()
-        df.loc[promise_mask, 'analysis_date'] = df.loc[promise_mask, 'promise_date']
-        df.loc[promise_mask, 'analysis_date_source'] = 'promise_date'
-        df.loc[promise_mask, 'analysis_date_is_fallback'] = False
+        special_mask = df['source_system'].isin(special_sources)
 
-        # Override with due_date if available (highest priority for open)
-        due_mask = open_mask & df['due_date'].notna()
-        df.loc[due_mask, 'analysis_date'] = df.loc[due_mask, 'due_date']
-        df.loc[due_mask, 'analysis_date_source'] = 'due_date'
-        df.loc[due_mask, 'analysis_date_is_fallback'] = False
+        special_open = special_mask & is_open
+        special_closed = special_mask & ~is_open
 
-        # --- Closed/receipts: receipt_date > due_date > order_date ---
-        closed_mask = ~is_open
+        open_mask = ~special_mask & is_open
+        closed_mask = ~special_mask & ~is_open
 
-        # Start with order_date as fallback
-        df.loc[closed_mask & df['order_date'].notna(), 'analysis_date'] = df.loc[closed_mask & df['order_date'].notna(), 'order_date']
-        df.loc[closed_mask & df['order_date'].notna(), 'analysis_date_source'] = 'order_date'
-        df.loc[closed_mask & df['order_date'].notna(), 'analysis_date_is_fallback'] = True
+        # ==================================================================
+        # SPECIAL SYSTEMS - OPEN
+        # order_date -> due_date -> promise_date
+        # ==================================================================
 
-        # Override with due_date if available
-        due_closed_mask = closed_mask & df['due_date'].notna()
-        df.loc[due_closed_mask, 'analysis_date'] = df.loc[due_closed_mask, 'due_date']
-        df.loc[due_closed_mask, 'analysis_date_source'] = 'due_date'
-        df.loc[due_closed_mask, 'analysis_date_is_fallback'] = False
+        mask = special_open & df['order_date'].notna()
+        df.loc[mask, 'analysis_date'] = df.loc[mask, 'order_date']
+        df.loc[mask, 'analysis_date_source'] = 'order_date'
+        df.loc[mask, 'analysis_date_is_fallback'] = False
 
-        # Override with receipt_date if available (highest priority for closed)
-        receipt_mask = closed_mask & df['receipt_date'].notna()
-        df.loc[receipt_mask, 'analysis_date'] = df.loc[receipt_mask, 'receipt_date']
-        df.loc[receipt_mask, 'analysis_date_source'] = 'receipt_date'
-        df.loc[receipt_mask, 'analysis_date_is_fallback'] = False
+        mask = special_open & df['analysis_date'].isna() & df['due_date'].notna()
+        df.loc[mask, 'analysis_date'] = df.loc[mask, 'due_date']
+        df.loc[mask, 'analysis_date_source'] = 'due_date'
 
-        # --- Adjust OPEN_ORDER analysis_date to "today" if in the past ---
-        # "Today" is defined as max file date from source files, not system datetime
+        mask = special_open & df['analysis_date'].isna() & df['promise_date'].notna()
+        df.loc[mask, 'analysis_date'] = df.loc[mask, 'promise_date']
+        df.loc[mask, 'analysis_date_source'] = 'promise_date'
+
+        # ==================================================================
+        # SPECIAL SYSTEMS - CLOSED
+        # receipt_date -> due_date -> order_date
+        # ==================================================================
+
+        mask = special_closed & df['order_date'].notna()
+        df.loc[mask, 'analysis_date'] = df.loc[mask, 'order_date']
+        df.loc[mask, 'analysis_date_source'] = 'order_date'
+        df.loc[mask, 'analysis_date_is_fallback'] = True
+
+        mask = special_closed & df['due_date'].notna()
+        df.loc[mask, 'analysis_date'] = df.loc[mask, 'due_date']
+        df.loc[mask, 'analysis_date_source'] = 'due_date'
+        df.loc[mask, 'analysis_date_is_fallback'] = False
+
+        mask = special_closed & df['receipt_date'].notna()
+        df.loc[mask, 'analysis_date'] = df.loc[mask, 'receipt_date']
+        df.loc[mask, 'analysis_date_source'] = 'receipt_date'
+        df.loc[mask, 'analysis_date_is_fallback'] = False
+
+        # ==================================================================
+        # EXISTING LOGIC - OPEN
+        # due_date -> promise_date -> order_date
+        # ==================================================================
+
+        mask = open_mask & df['order_date'].notna()
+        df.loc[mask, 'analysis_date'] = df.loc[mask, 'order_date']
+        df.loc[mask, 'analysis_date_source'] = 'order_date'
+        df.loc[mask, 'analysis_date_is_fallback'] = True
+
+        mask = open_mask & df['promise_date'].notna()
+        df.loc[mask, 'analysis_date'] = df.loc[mask, 'promise_date']
+        df.loc[mask, 'analysis_date_source'] = 'promise_date'
+        df.loc[mask, 'analysis_date_is_fallback'] = False
+
+        mask = open_mask & df['due_date'].notna()
+        df.loc[mask, 'analysis_date'] = df.loc[mask, 'due_date']
+        df.loc[mask, 'analysis_date_source'] = 'due_date'
+        df.loc[mask, 'analysis_date_is_fallback'] = False
+
+        # ==================================================================
+        # EXISTING LOGIC - CLOSED
+        # receipt_date -> due_date -> order_date
+        # ==================================================================
+
+        mask = closed_mask & df['order_date'].notna()
+        df.loc[mask, 'analysis_date'] = df.loc[mask, 'order_date']
+        df.loc[mask, 'analysis_date_source'] = 'order_date'
+        df.loc[mask, 'analysis_date_is_fallback'] = True
+
+        mask = closed_mask & df['due_date'].notna()
+        df.loc[mask, 'analysis_date'] = df.loc[mask, 'due_date']
+        df.loc[mask, 'analysis_date_source'] = 'due_date'
+        df.loc[mask, 'analysis_date_is_fallback'] = False
+
+        mask = closed_mask & df['receipt_date'].notna()
+        df.loc[mask, 'analysis_date'] = df.loc[mask, 'receipt_date']
+        df.loc[mask, 'analysis_date_source'] = 'receipt_date'
+        df.loc[mask, 'analysis_date_is_fallback'] = False
+
+        # ==================================================================
+        # Max File Date Adjustment
+        # ONLY for normal open orders
+        # ==================================================================
+
         max_file_date_str = self.pipeline_metadata.get('max_file_date')
+    
         if max_file_date_str:
             max_file_date = pd.to_datetime(max_file_date_str)
-
-            # Only adjust for OPEN_ORDER transactions (using is_open_order flag)
-            needs_adjustment = (is_open &
-                                df['analysis_date'].notna() &
-                                (df['analysis_date'] < max_file_date))
-
+    
+            needs_adjustment = (
+                open_mask &
+                df['analysis_date'].notna() &
+                (df['analysis_date'] < max_file_date)
+            )
+    
             adjustment_count = needs_adjustment.sum()
+    
             if adjustment_count > 0:
                 df.loc[needs_adjustment, 'analysis_date'] = max_file_date
-                print(f"    Adjusted {adjustment_count:,} OPEN_ORDER rows with past analysis_date to {max_file_date_str}")
+                print(
+                    f"    Adjusted {adjustment_count:,} OPEN_ORDER rows "
+                    f"with past analysis_date to {max_file_date_str}"
+                )
 
         # Report
         source_counts = df['analysis_date_source'].value_counts()
         print("    Analysis date sources:")
         for source, count in source_counts.items():
             print(f"      {source}: {count:,}")
-
         fallback_count = df['analysis_date_is_fallback'].sum()
         print(f"    Fallback to order_date: {fallback_count:,} rows")
 
@@ -1496,9 +1898,11 @@ class FinalBuilder:
         df['_load_timestamp'] = pd.Timestamp.now()
         df['_data_as_of_date'] = pd.to_datetime(self.pipeline_metadata.get('max_file_date'))
 
-        # Convert analysis_date to date (not datetime) for Parquet
+        # Convert date fields to date (not datetime) for Parquet
         if 'analysis_date' in df.columns:
-            df['analysis_date'] = pd.to_datetime(df['analysis_date']).dt.date
+            df['analysis_date'] = pd.to_datetime(df['analysis_date'], errors='coerce').dt.date
+        if 'final_receipt_date' in df.columns:
+            df['final_receipt_date'] = pd.to_datetime(df['final_receipt_date'], errors='coerce').dt.date
 
         # Get the schema
         schema = get_po_fact_schema()
@@ -1552,7 +1956,8 @@ class FinalBuilder:
             print(f"  Staging file not found: {self.staging_path}")
             return
 
-        df = pd.read_csv(self.staging_path, low_memory=False)
+        # Keep literal placeholders like 'N/A' as strings instead of auto-converting to NaN.
+        df = pd.read_csv(self.staging_path, low_memory=False, keep_default_na=False)
         print(f"  Loaded {len(df):,} staging rows.")
 
         # ============================================
@@ -1570,7 +1975,6 @@ class FinalBuilder:
         print("  Applying Terms Standardization...")
         df = self._apply_terms_standardization(df)
 
-        # Apply item categorization
         print("  Applying Item Categorization...")
         df = self._apply_item_categorization(df)
 
@@ -1583,9 +1987,6 @@ class FinalBuilder:
             df.loc[valid_mpn, 'item_id'] = df.loc[valid_mpn, 'item_name_mpn']
             print(f"    Standardized {standardized:,} item_id values to MPN")
 
-        # Post-standardization consistency: when the same standardized item_id
-        # has conflicting categories (due to different Internal IDs mapping to
-        # different item_map entries), align all rows to the majority category.
         df = self._resolve_category_conflicts(df)
 
         # Apply description fallback (replace placeholders with display name)
@@ -1600,6 +2001,7 @@ class FinalBuilder:
         # Derived from item_name (descriptive) instead of item_name_mpn (part number)
         print("  Creating Shortened Item Names...")
         df['item_short_name'] = df['item_name'].apply(create_short_name)
+        df = self._fill_blank_item_labels_for_reporting(df)
         short_count = (df['item_short_name'].str.len() < df['item_name'].astype(str).str.len()).sum()
         print(f"    Shortened {short_count:,} item names")
 
@@ -1616,7 +2018,14 @@ class FinalBuilder:
         # Compute analysis_date (replaces Power Query calculation)
         df = self._compute_analysis_date(df)
 
-        # Apply reporting date filter (after analysis_date but before metrics)
+        # Calculate OTD at PO-line grain BEFORE reporting-date filtering.
+        # This is required so historical receipt rows are still available to
+        # determine the final receipt date for a partially delivered PO line.
+        print("  Calculating PO-line OTD metrics...")
+        df = self._add_status_flags(df)
+        df = self._add_otd_metrics(df)
+
+        # Apply reporting date filter after OTD line-level evaluation.
         df = self._apply_reporting_date_filter(df)
 
         # ============================================
@@ -1640,6 +2049,12 @@ class FinalBuilder:
 
         # Enforce schema types (convert text to numeric)
         df = self._enforce_schema_types(df)
+
+        # Make blank item_id values visible in Power BI slicers/tables
+        df = self._fill_blank_item_ids_for_reporting(df)
+
+        # Make blank po_number values visible in Power BI slicers/tables
+        df = self._fill_blank_po_numbers_for_reporting(df)
 
         # Run data quality checks (fails on critical issues)
         df = self._run_data_quality_checks(df)
@@ -1702,12 +2117,11 @@ class FinalBuilder:
         if 'on_time_flag' in df.columns:
             on_time = df['on_time_flag'].dropna()
             if len(on_time) > 0:
-                early_count = (on_time == 'Early').sum()
                 on_time_count = (on_time == 'On Time').sum()
                 late_count = (on_time == 'Late').sum()
                 total = len(on_time)
                 otd_pct = (on_time_count / total) * 100
-                print(f"  OTD Rate: {otd_pct:.1f}% — Early={early_count:,}, On Time={on_time_count:,}, Late={late_count:,}")
+                print(f"  OTD Rate: {otd_pct:.1f}% — On Time={on_time_count:,}, Late={late_count:,}")
 
         # 6-Column Quantity/Amount Summary
         if all(col in df.columns for col in ['open_amount', 'received_amount', 'open_plus_received_amount']):
