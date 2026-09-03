@@ -1288,8 +1288,17 @@ class FinalBuilder:
                     delta = (promise_date - final_receipt).days
                 else:
                     # No final receipt yet. Use analysis_date as the reporting/as-of date.
-                    analysis_values = pd.to_datetime(g['analysis_date'], errors='coerce').dropna() if 'analysis_date' in g.columns else pd.Series(dtype='datetime64[ns]')
-                    if len(analysis_values) and analysis_values.max() > boundary:
+                    # No final receipt yet.
+                    #
+                    # For an incomplete Open Order, OTD eligibility must be evaluated
+                    # against the pipeline data-as-of date (max_file_date), NOT analysis_date.
+
+                    data_as_of_date = pd.to_datetime(
+                        self.pipeline_metadata.get('max_file_date'),
+                        errors='coerce'
+                    )
+
+                    if pd.notna(data_as_of_date) and data_as_of_date > boundary:
                         status = 'Late'
                     else:
                         status = None
@@ -1326,13 +1335,33 @@ class FinalBuilder:
 
         # Operational overdue flag: only an actually open quantity can be overdue.
         if 'open_quantity' in df.columns:
-            oq = pd.to_numeric(df['open_quantity'], errors='coerce').fillna(0)
-            promise = pd.to_datetime(df.get('promise_date'), errors='coerce')
-            analysis = pd.to_datetime(df.get('analysis_date'), errors='coerce')
-            df['is_overdue'] = (
-                promise.notna() & analysis.notna() & (oq > 0) &
-                (analysis > promise + pd.Timedelta(days=self.GRACE_PERIOD_DAYS))
+            oq = pd.to_numeric(
+                df['open_quantity'],
+                errors='coerce'
+            ).fillna(0)
+
+            promise = pd.to_datetime(
+                df.get('promise_date'),
+                errors='coerce'
             )
+
+            data_as_of_date = pd.to_datetime(
+                self.pipeline_metadata.get('max_file_date'),
+                errors='coerce'
+            )
+
+            if pd.notna(data_as_of_date):
+                df['is_overdue'] = (
+                    promise.notna()
+                    & (oq > 0)
+                    & (
+                        data_as_of_date
+                        > promise + pd.Timedelta(days=self.GRACE_PERIOD_DAYS)
+                    )
+                )
+            else:
+                df['is_overdue'] = False
+
         else:
             df['is_overdue'] = False
 
