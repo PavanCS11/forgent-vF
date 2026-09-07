@@ -21,7 +21,7 @@ Dates,order_date,Date the PO was created,Maximum of Date,Maximum of PO Date,Orde
 Dates,due_date,Due date for delivery,Maximum of Due Date,NULL,Due Date,Due Date,NS Receipts: populated by PO Line Dates join
 Dates,promise_date,Vendor promised delivery date,Maximum of Expected Receipt Date,NULL,Promise Date,Promise Date,NS Open POs: current commitment date; NS Receipts: populated by PO Line Dates join then NS Open POs fallback
 Dates,old_promise_date,Previous promise date before revision,Maximum of Promise Date,NULL,NULL,NULL,NS Open POs: prior commitment; NS Receipts: populated by PO Line Dates join
-Dates,requested_date,Requested delivery date (custom),NULL,NULL,requested_c,requested_c,Epicor custom field
+Dates,requested_date,Requested delivery date (custom),Maximum of Requested Date,NULL,requested_c,requested_c,Epicor custom field
 Dates,receipt_date,Date goods were received,NULL,Maximum of Receipt Date,NULL,Receipt Date Line,Only on receipt transactions
 Dates,arrived_date,Date goods arrived (may differ from receipt),NULL,NULL,NULL,Arrived Date Line,Epicor Receipts only
 Quantities,total_quantity,Total ordered quantity,Maximum of Total Quantity,NULL,Release Qty on Release,NULL,Open POs only

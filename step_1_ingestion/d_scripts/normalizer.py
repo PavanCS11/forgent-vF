@@ -162,12 +162,13 @@ class Normalizer:
         promise_date_col = 'Maximum of PO New Promise Date'
         old_promise_col = 'Maximum of PO Promise Date'
         due_date_col = 'Maximum of PO Due Date'
+        requested_date_col = 'Maximum of Requested Date'
 
         if po_num_col not in df.columns:
             print(f"  Warning: PO Line Dates missing 'PO Number' column — skipping join")
             return {}
 
-        for col in [promise_date_col, old_promise_col, due_date_col]:
+        for col in [promise_date_col, old_promise_col, due_date_col, requested_date_col]:
             if col in df.columns:
                 df[col] = pd.to_datetime(df[col], errors='coerce')
 
@@ -181,11 +182,13 @@ class Normalizer:
             agg_dict[old_promise_col] = 'min'
         if due_date_col in df.columns:
             agg_dict[due_date_col] = 'min'
+        if requested_date_col in df.columns:
+            agg_dict[requested_date_col] = 'min'
 
         df_agg = df.groupby('_key_po', as_index=False).agg(agg_dict)
 
         # Format dates back to strings
-        for col in [promise_date_col, old_promise_col, due_date_col]:
+        for col in [promise_date_col, old_promise_col, due_date_col, requested_date_col]:
             if col in df_agg.columns:
                 df_agg[col] = df_agg[col].dt.strftime('%Y-%m-%d')
 
@@ -196,6 +199,7 @@ class Normalizer:
                 'promise_date': row.get(promise_date_col) if promise_date_col in df_agg.columns else None,
                 'old_promise_date': row.get(old_promise_col) if old_promise_col in df_agg.columns else None,
                 'due_date': row.get(due_date_col) if due_date_col in df_agg.columns else None,
+                'requested_date': row.get(requested_date_col) if requested_date_col in df_agg.columns else None,
             }
 
         print(f"  PO Line Dates lookup: {len(lookup):,} unique PO numbers")
@@ -221,7 +225,7 @@ class Normalizer:
 
         print(f"\n  Joining PO Line Dates onto {total:,} NS Receipt rows...")
 
-        for col in ['promise_date', 'old_promise_date', 'due_date']:
+        for col in ['promise_date', 'old_promise_date', 'due_date', 'requested_date']:
             if col not in df.columns:
                 df[col] = None
 
@@ -229,7 +233,8 @@ class Normalizer:
             {'_key_po': k,
              '_j_promise': v.get('promise_date'),
              '_j_old_promise': v.get('old_promise_date'),
-             '_j_due': v.get('due_date')}
+             '_j_due': v.get('due_date'),
+             '_j_requested': v.get('requested_date')}
             for k, v in lookup.items()
         ])
 
@@ -241,10 +246,12 @@ class Normalizer:
         df.loc[ns_receipt_mask, 'promise_date'] = merged['_j_promise'].values
         df.loc[ns_receipt_mask, 'old_promise_date'] = merged['_j_old_promise'].values
         df.loc[ns_receipt_mask, 'due_date'] = merged['_j_due'].values
+        df.loc[ns_receipt_mask, 'requested_date'] = merged['_j_requested'].values
 
         promise_populated = merged['_j_promise'].notna().sum()
+        requested_populated = merged['_j_requested'].notna().sum()
         print(f"    promise_date populated: {promise_populated:,} / {total:,} ({promise_populated/total*100:.1f}%)")
-
+        print(f"    requested_date populated: {requested_populated:,} / {total:,} ({requested_populated/total*100:.1f}%)")
         return df
 
     def _apply_ns_receipt_promise_fallback(self, df: pd.DataFrame) -> pd.DataFrame:
@@ -303,6 +310,136 @@ class Normalizer:
 
         return df
 
+    def _apply_ns_receipt_requested_date_fallback(
+        self,
+        df: pd.DataFrame
+    ) -> pd.DataFrame:
+        """Fallback: for NS receipt rows with null requested_date after
+        the PO Line Dates join, pull requested_date from the NS Open POs
+        file keyed on po_number only.
+
+        Uses the minimum Maximum of Requested Date per PO as the
+        conservative requested-date value.
+        """
+
+        ns_receipt_null_mask = (
+            (df['source_system'] == 'NETSUITE') &
+            (df['transaction_type'] == 'RECEIPT') &
+            (df['requested_date'].isna())
+        )
+
+        unmatched = ns_receipt_null_mask.sum()
+
+        if unmatched == 0:
+            return df
+
+        print(
+            f"\n  NS Receipt requested_date fallback: "
+            f"{unmatched:,} unmatched rows — loading NS Open POs..."
+        )
+
+        pattern = os.path.join(
+            self.input_dir,
+            'Netsuite/Netsuite Open POs*.csv'
+        )
+
+        files = glob.glob(pattern)
+
+        if not files:
+            print(
+                "  Warning: No NS Open POs file found — "
+                "requested_date fallback skipped"
+            )
+            return df
+
+        files.sort(
+            key=os.path.getmtime,
+            reverse=True
+        )
+
+        ns_open = pd.read_csv(
+            files[0],
+            dtype=str
+        )
+
+        po_col = 'PO Number'
+        requested_col = 'Maximum of Requested Date'
+
+        if (
+            po_col not in ns_open.columns or
+            requested_col not in ns_open.columns
+        ):
+            print(
+                "  Warning: NS Open POs missing required columns — "
+                "requested_date fallback skipped"
+            )
+            return df
+
+        ns_open['_key_po'] = (
+            ns_open[po_col]
+            .astype(str)
+            .str.strip()
+        )
+
+        ns_open[requested_col] = (
+            pd.to_datetime(
+                ns_open[requested_col],
+                errors='coerce'
+            )
+            .dt.strftime('%Y-%m-%d')
+        )
+
+        # Take the minimum requested date per PO.
+        # This follows the same conservative PO-level approach
+        # used by the existing promise-date fallback.
+        po_requested = (
+            ns_open
+            .dropna(subset=[requested_col])
+            .groupby('_key_po')[requested_col]
+            .min()
+            .reset_index()
+            .rename(
+                columns={
+                    requested_col: '_fallback_requested_date'
+                }
+            )
+        )
+
+        unmatched_receipts = df[
+            ns_receipt_null_mask
+        ].copy()
+
+        unmatched_receipts['_key_po'] = (
+            unmatched_receipts['po_number']
+            .astype(str)
+            .str.strip()
+        )
+
+        merged = unmatched_receipts.merge(
+            po_requested,
+            on='_key_po',
+            how='left'
+        )
+
+        df.loc[
+            ns_receipt_null_mask,
+            'requested_date'
+        ] = merged[
+            '_fallback_requested_date'
+        ].values
+
+        filled = merged[
+            '_fallback_requested_date'
+        ].notna().sum()
+
+        print(
+            f"    Fallback filled requested_date: "
+            f"{filled:,} / {unmatched:,} "
+            f"({filled/unmatched*100:.1f}%)"
+        )
+
+        return df
+
     def process_all(self):
         """Processes all configured sources and outputs a single combined file."""
         sources = self.config_loader.get_sources()
@@ -325,6 +462,9 @@ class Normalizer:
 
             # Fallback: fill remaining null promise_date on NS receipts from NS Open POs (PO-level)
             combined_df = self._apply_ns_receipt_promise_fallback(combined_df)
+
+            # Fallback requested_date from NS Open POs
+            combined_df = self._apply_ns_receipt_requested_date_fallback(combined_df)
 
             # Print data freshness report
             self._print_data_freshness_report(combined_df, all_file_dates)

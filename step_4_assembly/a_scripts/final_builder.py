@@ -1189,7 +1189,7 @@ class FinalBuilder:
         the line is incomplete; once fully received, the latest existing receipt row
         is the OTD representative.
         """
-        key_cols = ['source_system', 'po_number', 'po_line', 'po_release_num']
+        key_cols = ['source_system', 'business_unit', 'po_number', 'po_line', 'po_release_num', 'item_id']
         for col in key_cols:
             if col not in df.columns:
                 df[col] = ''
@@ -1311,11 +1311,27 @@ class FinalBuilder:
             # the physical receipt/open-order rows intact while ensuring there
             # is exactly one OTD result per PO line in Power BI.
             if representative_idx is not None:
-                df.at[representative_idx, 'is_otd_representative'] = True
+                representative_promise_date = pd.to_datetime(
+                    df.at[representative_idx, 'promise_date'],
+                    errors='coerce'
+                )
+
+                data_as_of_date = pd.to_datetime(
+                    self.pipeline_metadata.get('max_file_date'),
+                    errors='coerce'
+                )
+
+                if (
+                    pd.notna(representative_promise_date)
+                    and pd.notna(data_as_of_date)
+                    and representative_promise_date <= data_as_of_date
+                ):
+                    df.at[representative_idx, 'is_otd_representative'] = True
 
             # Populate the PO-line OTD status on all physical rows.
-            df.at[representative_idx, 'on_time_vs_promise_flag'] = status
-            df.at[representative_idx, 'on_time_flag'] = status
+            # belonging to the same otd_line_key.
+            df.loc[idx, 'on_time_vs_promise_flag'] = status
+            df.loc[idx, 'on_time_flag'] = status
 
         # Keep Due Date operational classification unchanged. Early may still exist here;
         # Early is removed only from Promise-Date OTD.
@@ -2053,6 +2069,22 @@ class FinalBuilder:
         print("  Calculating PO-line OTD metrics...")
         df = self._add_status_flags(df)
         df = self._add_otd_metrics(df)
+
+        data_as_of_date = pd.to_datetime(
+            self.pipeline_metadata.get('max_file_date'),
+            errors='coerce'
+        )
+
+        promise_date = pd.to_datetime(
+            df['promise_date'],
+            errors='coerce'
+        )
+
+        df['is_otd_eligible'] = (
+            promise_date.notna()
+            & pd.notna(data_as_of_date)
+            & (promise_date <= data_as_of_date)
+        ).astype(int)
 
         # Apply reporting date filter after OTD line-level evaluation.
         df = self._apply_reporting_date_filter(df)
