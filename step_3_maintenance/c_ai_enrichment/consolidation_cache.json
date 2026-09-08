@@ -833,5 +833,30 @@
     "same_product": false,
     "canonical_name": "500kVA Three Phase Padmount Transformer",
     "confidence": 0.95
+  },
+  "consol_bd19470f2e1105bd": {
+    "same_product": false,
+    "canonical_name": "ABB TruONE Automatic Transfer Switch",
+    "confidence": 1.0
+  },
+  "consol_dee855f753b0efaf": {
+    "same_product": false,
+    "canonical_name": "CAT6 ETHERNET PATCH CABLES SNAGLESS BOOT- BLACK",
+    "confidence": 1.0
+  },
+  "consol_a61f6f262a2a5b9e": {
+    "same_product": false,
+    "canonical_name": "Cat6 Shielded Patch Cables (Various Lengths/Colors)",
+    "confidence": 1.0
+  },
+  "consol_8afe8082d2b98e90": {
+    "same_product": false,
+    "canonical_name": "15kV 10kVA CPT Compartment",
+    "confidence": 0.95
+  },
+  "consol_8c6c4c0b64b55258": {
+    "same_product": false,
+    "canonical_name": "Control Power Transformers (Various kVA/Primary Voltage Ratings)",
+    "confidence": 1.0
   }
 }

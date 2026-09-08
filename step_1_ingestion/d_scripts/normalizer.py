@@ -616,9 +616,9 @@ class Normalizer:
 if __name__ == "__main__":
     # Test run
     norm = Normalizer(
-        config_path="step_01_ingestion/b.config/source_mappings.yaml",
-        schema_dir="step_01_ingestion/c.schemas",
-        input_dir="step_01_ingestion/a.raw_data",
-        output_dir="step_01_ingestion/e.normalized"
+        config_path="step_1_ingestion/b.config/source_mappings.yaml",
+        schema_dir="step_1_ingestion/c.schemas",
+        input_dir="step_1_ingestion/a.raw_data",
+        output_dir="step_1_ingestion/e.normalized"
     )
     norm.process_all()
