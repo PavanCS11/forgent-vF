@@ -858,5 +858,10 @@
     "same_product": false,
     "canonical_name": "Control Power Transformers (Various kVA/Primary Voltage Ratings)",
     "confidence": 1.0
+  },
+  "consol_85df46e6e16ce6c4": {
+    "same_product": false,
+    "canonical_name": "Cat6 Network Ethernet Patch Cable- Black",
+    "confidence": 1.0
   }
 }
