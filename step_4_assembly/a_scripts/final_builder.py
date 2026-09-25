@@ -2020,18 +2020,32 @@ class FinalBuilder:
         print("  Applying Terms Standardization...")
         df = self._apply_terms_standardization(df)
 
+        # Standardize Item IDs BEFORE Item Categorization
+        if 'item_name_mpn' in df.columns and 'source_system' in df.columns:
+
+            valid_mpn = (
+                df['item_name_mpn'].notna()
+                & df['item_name_mpn'].astype(str).str.strip().ne('')
+                & df['item_name_mpn'].astype(str).str.lower().ne('nan')
+            )
+
+            netsuite_mask = (
+                df['source_system'].astype(str).str.strip().str.upper().eq('NETSUITE')
+                & valid_mpn
+            )
+
+            if netsuite_mask.any():
+                df.loc[netsuite_mask, 'item_id'] = (
+                    df.loc[netsuite_mask, 'item_name_mpn']
+                    .astype(str)
+                    .str.strip()
+                )
+
+        # Apply Item Categorization AFTER Item ID Standardization
         print("  Applying Item Categorization...")
         df = self._apply_item_categorization(df)
 
-        # Standardize item_id to MPN (item_name_mpn is consistent across systems;
-        # raw item_id is a meaningless numeric ID in NetSuite)
-        print("  Standardizing Item IDs...")
-        if 'item_name_mpn' in df.columns:
-            valid_mpn = df['item_name_mpn'].notna() & (df['item_name_mpn'].astype(str).str.strip() != '')
-            standardized = valid_mpn.sum()
-            df.loc[valid_mpn, 'item_id'] = df.loc[valid_mpn, 'item_name_mpn']
-            print(f"    Standardized {standardized:,} item_id values to MPN")
-
+        # Resolve Category Conflicts
         df = self._resolve_category_conflicts(df)
 
         # Apply description fallback (replace placeholders with display name)
