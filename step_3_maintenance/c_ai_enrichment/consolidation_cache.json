@@ -863,5 +863,15 @@
     "same_product": false,
     "canonical_name": "Cat6 Network Ethernet Patch Cable- Black",
     "confidence": 1.0
+  },
+  "consol_b256ebc695a973af": {
+    "same_product": false,
+    "canonical_name": "TAP MAGIC Cutting Fluid",
+    "confidence": 0.95
+  },
+  "consol_748b2d50d7a8826a": {
+    "same_product": false,
+    "canonical_name": "GE PLM3220C Load Center",
+    "confidence": 0.95
   }
 }

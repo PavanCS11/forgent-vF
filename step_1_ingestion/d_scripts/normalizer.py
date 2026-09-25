@@ -138,11 +138,20 @@ class Normalizer:
 
         print(f"  Pipeline metadata saved: max_file_date = {max_file_date.strftime('%Y-%m-%d')}")
 
-    def _load_po_line_dates_lookup(self) -> dict:
-        """Loads NS PO Line Dates file and builds a lookup for joining to NS Receipt rows.
+    @staticmethod
+    def _norm_line(series: pd.Series) -> pd.Series:
+        """Normalises a PO line identifier to a clean integer string ('3', not '3.0')."""
+        return pd.to_numeric(series, errors='coerce').astype('Int64').astype(str)
 
-        Key: po_number -> dict of date fields (min promise date across all lines for that PO).
-        Uses minimum dates so that the earliest commitment is used when a PO has multiple lines.
+    def _load_po_line_dates_lookup(self) -> pd.DataFrame:
+        """Loads NS PO Line Dates and returns a LINE-LEVEL lookup for joining to NS Receipt rows.
+
+        Key: (PO Number, PO Line ID). One row per PO line — no aggregation.
+        The previous version keyed on PO Number only and took the minimum date across
+        all lines of the PO, which gave every receipt on a multi-line PO the earliest
+        date and biased NetSuite deliveries toward "late" (~48% of receipt rows affected,
+        late share 80.6% -> 57.9% once joined at line level; validated 9/10/2026).
+
         Returns dates as '%Y-%m-%d' strings to match the rest of the normalized output.
         """
         pattern = os.path.join(self.input_dir, 'Netsuite/Netsuite PO Line Dates*.csv')
@@ -150,112 +159,117 @@ class Normalizer:
 
         if not files:
             print("  Warning: No NS PO Line Dates file found — NS receipt date fields will be NULL")
-            return {}
+            return pd.DataFrame()
 
         files.sort(key=os.path.getmtime, reverse=True)
         file_path = files[0]
         print(f"\n  Loading PO Line Dates lookup from: {os.path.basename(file_path)}")
 
-        df = pd.read_csv(file_path, encoding='utf-8-sig')
+        df = pd.read_csv(file_path, encoding='utf-8-sig', low_memory=False)
 
         po_num_col = 'PO Number'
-        promise_date_col = 'Maximum of PO New Promise Date'
-        old_promise_col = 'Maximum of PO Promise Date'
-        due_date_col = 'Maximum of PO Due Date'
-        requested_date_col = 'Maximum of Requested Date'
+        po_line_col = 'PO Line ID'
+        source_cols = {
+            'promise_date':     'Maximum of PO New Promise Date',
+            'old_promise_date': 'Maximum of PO Promise Date',
+            'due_date':         'Maximum of PO Due Date',
+            'requested_date':   'Maximum of Requested Date',
+            'order_date':       'Maximum of PO Date',
+        }
 
-        if po_num_col not in df.columns:
-            print(f"  Warning: PO Line Dates missing 'PO Number' column — skipping join")
-            return {}
+        for required in (po_num_col, po_line_col):
+            if required not in df.columns:
+                print(f"  Warning: PO Line Dates missing '{required}' column — skipping join")
+                return pd.DataFrame()
 
-        for col in [promise_date_col, old_promise_col, due_date_col, requested_date_col]:
-            if col in df.columns:
-                df[col] = pd.to_datetime(df[col], errors='coerce')
+        lookup = pd.DataFrame({
+            '_key_po':   df[po_num_col].astype(str).str.strip(),
+            '_key_line': self._norm_line(df[po_line_col]),
+        })
+        for target, src in source_cols.items():
+            if src in df.columns:
+                lookup[target] = pd.to_datetime(df[src], errors='coerce').dt.strftime('%Y-%m-%d')
+            else:
+                print(f"  Warning: PO Line Dates missing '{src}' — {target} will be NULL on NS receipts")
+                lookup[target] = None
 
-        df['_key_po'] = df[po_num_col].astype(str).str.strip()
+        # Grain assertion: the lookup must be unique on PO + line. If it is not, something
+        # upstream changed and we must NOT silently aggregate to make the join fit.
+        dupes = lookup.duplicated(['_key_po', '_key_line']).sum()
+        if dupes:
+            raise ValueError(
+                f"PO Line Dates is not unique on PO Number + PO Line ID ({dupes:,} duplicate keys). "
+                "Refusing to aggregate. Check the saved search grouping."
+            )
 
-        # Aggregate to PO level: take the minimum date across all lines for each PO
-        agg_dict = {}
-        if promise_date_col in df.columns:
-            agg_dict[promise_date_col] = 'min'
-        if old_promise_col in df.columns:
-            agg_dict[old_promise_col] = 'min'
-        if due_date_col in df.columns:
-            agg_dict[due_date_col] = 'min'
-        if requested_date_col in df.columns:
-            agg_dict[requested_date_col] = 'min'
-
-        df_agg = df.groupby('_key_po', as_index=False).agg(agg_dict)
-
-        # Format dates back to strings
-        for col in [promise_date_col, old_promise_col, due_date_col, requested_date_col]:
-            if col in df_agg.columns:
-                df_agg[col] = df_agg[col].dt.strftime('%Y-%m-%d')
-
-        lookup = {}
-        for _, row in df_agg.iterrows():
-            key = row['_key_po']
-            lookup[key] = {
-                'promise_date': row.get(promise_date_col) if promise_date_col in df_agg.columns else None,
-                'old_promise_date': row.get(old_promise_col) if old_promise_col in df_agg.columns else None,
-                'due_date': row.get(due_date_col) if due_date_col in df_agg.columns else None,
-                'requested_date': row.get(requested_date_col) if requested_date_col in df_agg.columns else None,
-            }
-
-        print(f"  PO Line Dates lookup: {len(lookup):,} unique PO numbers")
+        print(f"  PO Line Dates lookup: {len(lookup):,} PO lines across {lookup['_key_po'].nunique():,} POs")
         return lookup
 
-    def _join_po_line_dates(self, df: pd.DataFrame, lookup: dict) -> pd.DataFrame:
-        """Joins PO Line Dates onto NS RECEIPT rows.
+    def _join_po_line_dates(self, df: pd.DataFrame, lookup: pd.DataFrame) -> pd.DataFrame:
+        """Joins PO Line Dates onto NS RECEIPT rows at PO LINE grain.
 
-        Populates promise_date, old_promise_date, and due_date for NETSUITE RECEIPT rows
-        using PO-level data from the PO Line Dates saved search.
-        Join key: po_number only (item name/MPN fields differ between the two saved searches).
+        Populates promise_date, old_promise_date, due_date, requested_date and order_date
+        for NETSUITE RECEIPT rows. Join key: po_number + po_line. po_line on NS receipts
+        comes from the 'PO Line ID' column added to the Item Receipt v3 saved search
+        (Applied To Transaction : Line ID) — see transaction_field_mapping.csv.
         """
-        if not lookup:
+        if lookup is None or lookup.empty:
             return df
 
         ns_receipt_mask = (
             (df['source_system'] == 'NETSUITE') &
             (df['transaction_type'] == 'RECEIPT')
         )
-        total = ns_receipt_mask.sum()
+        total = int(ns_receipt_mask.sum())
         if total == 0:
             return df
 
-        print(f"\n  Joining PO Line Dates onto {total:,} NS Receipt rows...")
+        print(f"\n  Joining PO Line Dates onto {total:,} NS Receipt rows at PO+line grain...")
 
-        for col in ['promise_date', 'old_promise_date', 'due_date', 'requested_date']:
+        date_cols = ['promise_date', 'old_promise_date', 'due_date', 'requested_date', 'order_date']
+        for col in date_cols:
             if col not in df.columns:
                 df[col] = None
 
-        lookup_df = pd.DataFrame([
-            {'_key_po': k,
-             '_j_promise': v.get('promise_date'),
-             '_j_old_promise': v.get('old_promise_date'),
-             '_j_due': v.get('due_date'),
-             '_j_requested': v.get('requested_date')}
-            for k, v in lookup.items()
-        ])
+        if 'po_line' not in df.columns or df.loc[ns_receipt_mask, 'po_line'].isna().all():
+            print("  Warning: po_line is empty on NS receipts — check that transaction_field_mapping.csv "
+                  "maps po_line to 'PO Line ID' for NS Receipts. Skipping join.")
+            return df
 
-        ns_receipts = df[ns_receipt_mask].copy()
+        ns_receipts = df.loc[ns_receipt_mask, ['po_number', 'po_line']].copy()
         ns_receipts['_key_po'] = ns_receipts['po_number'].astype(str).str.strip()
+        ns_receipts['_key_line'] = self._norm_line(ns_receipts['po_line'])
 
-        merged = ns_receipts.merge(lookup_df, on='_key_po', how='left')
+        rows_before = len(ns_receipts)
+        merged = ns_receipts.merge(
+            lookup.rename(columns={c: f'_j_{c}' for c in date_cols}),
+            on=['_key_po', '_key_line'], how='left'
+        )
+        if len(merged) != rows_before:
+            raise ValueError(f"Join fan-out: {rows_before:,} receipt rows became {len(merged):,}. "
+                             "Lookup is not unique on PO+line.")
 
-        df.loc[ns_receipt_mask, 'promise_date'] = merged['_j_promise'].values
-        df.loc[ns_receipt_mask, 'old_promise_date'] = merged['_j_old_promise'].values
-        df.loc[ns_receipt_mask, 'due_date'] = merged['_j_due'].values
-        df.loc[ns_receipt_mask, 'requested_date'] = merged['_j_requested'].values
+        for col in date_cols:
+            df.loc[ns_receipt_mask, col] = merged[f'_j_{col}'].values
 
-        promise_populated = merged['_j_promise'].notna().sum()
-        requested_populated = merged['_j_requested'].notna().sum()
-        print(f"    promise_date populated: {promise_populated:,} / {total:,} ({promise_populated/total*100:.1f}%)")
-        print(f"    requested_date populated: {requested_populated:,} / {total:,} ({requested_populated/total*100:.1f}%)")
+        matched = int(merged[[f'_j_{c}' for c in date_cols]].notna().any(axis=1).sum())
+        print(f"    matched at PO+line: {matched:,} / {total:,} ({matched/total*100:.1f}%)")
+        for col in date_cols:
+            n = int(merged[f'_j_{col}'].notna().sum())
+            print(f"    {col:16s} populated: {n:,} / {total:,} ({n/total*100:.1f}%)")
+        if matched / total < 0.95:
+            print("  WARNING: line-level match rate below 95% — expected ~99.5%. "
+                  "Check po_line mapping and PO Line ID numbering before trusting NS receipt dates.")
         return df
 
     def _apply_ns_receipt_promise_fallback(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Fallback: for NS receipt rows with null promise_date after the PO Line Dates join,
+        """DEPRECATED 9/10/2026 — no longer called from process_all().
+        Filled promise_date at PO-header grain (min Expected Receipt Date per PO). With the
+        line-level join in place, 99.5% of NS receipts match directly and the remaining 0.5%
+        have no Applied-To PO at all, so there is nothing valid to fall back to.
+        Kept for one release for reference; delete after the rewire is verified.
+
+        Fallback: for NS receipt rows with null promise_date after the PO Line Dates join,
         pull promise_date from the NS Open POs file keyed on po_number only.
 
         This recovers rows (e.g. PwrQ) whose item_name_mpn didn't match the line-level
@@ -314,7 +328,10 @@ class Normalizer:
         self,
         df: pd.DataFrame
     ) -> pd.DataFrame:
-        """Fallback: for NS receipt rows with null requested_date after
+        """DEPRECATED 9/10/2026 — no longer called from process_all(). Same reason as
+        _apply_ns_receipt_promise_fallback: a PO-level minimum is not a valid line date.
+
+        Fallback: for NS receipt rows with null requested_date after
         the PO Line Dates join, pull requested_date from the NS Open POs
         file keyed on po_number only.
 
@@ -456,15 +473,12 @@ class Normalizer:
             # Combine all normalized data into single DataFrame
             combined_df = pd.concat(all_normalized_data, ignore_index=True)
 
-            # Join PO Line Dates onto NS Receipt rows (line-level promise/due dates)
+            # Join PO Line Dates onto NS Receipt rows at PO + line grain.
+            # 9/10/2026: replaced the PO-header join + min() aggregation. The two PO-level
+            # fallbacks that followed are no longer called — a PO-level minimum is not a
+            # valid line-level date, and 99.5% of receipts now match directly.
             po_line_lookup = self._load_po_line_dates_lookup()
             combined_df = self._join_po_line_dates(combined_df, po_line_lookup)
-
-            # Fallback: fill remaining null promise_date on NS receipts from NS Open POs (PO-level)
-            combined_df = self._apply_ns_receipt_promise_fallback(combined_df)
-
-            # Fallback requested_date from NS Open POs
-            combined_df = self._apply_ns_receipt_requested_date_fallback(combined_df)
 
             # Print data freshness report
             self._print_data_freshness_report(combined_df, all_file_dates)

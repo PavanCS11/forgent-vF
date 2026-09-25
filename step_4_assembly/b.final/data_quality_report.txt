@@ -1,7 +1,7 @@
 ======================================================================
 DATA QUALITY REPORT
-Generated: 2026-09-15T20:21:15.756520
-Total Rows Checked: 97,774
+Generated: 2026-09-25T03:02:00.850985
+Total Rows Checked: 98,521
 ======================================================================
 
 --- CRITICAL CHECKS ---
@@ -12,17 +12,17 @@ Total Rows Checked: 97,774
 --- WARNING CHECKS ---
 
 [FAIL (WARNING)] Negative Quantities
-    Found 194 rows with negative quantities (received_quantity: 186; open_quantity: 8)
+    Found 196 rows with negative quantities (received_quantity: 186; open_quantity: 10)
 
 [PASS] Status Consistency (open_amount vs is_open_order)
     Found 0 rows with open_amount > 0 but is_open_order = False
 
 [FAIL (WARNING)] Date Order Violations (receipt < order)
-    Found 21 rows where receipt_date < order_date
+    Found 125 rows where receipt_date < order_date
     Samples:
-      - PO 121569: order=2024-01-12 00:00:00, receipt=2023-12-06 00:00:00
-      - PO 121569: order=2024-01-12 00:00:00, receipt=2023-12-06 00:00:00
-      - PO 125414: order=2024-12-26 00:00:00, receipt=2024-12-18 00:00:00
+      - PO P40525: order=2024-07-02 00:00:00, receipt=2024-06-17 00:00:00
+      - PO P40553: order=2024-07-05 00:00:00, receipt=2024-06-17 00:00:00
+      - PO P42011: order=2024-12-06 00:00:00, receipt=2024-12-04 00:00:00
 
 [PASS] Grain Uniqueness
     All rows unique
@@ -40,31 +40,29 @@ Total Rows Checked: 97,774
     on_time_vs_promise_flag contains only valid OTD categories
 
 [FAIL (WARNING)] Transaction Type Overlap (Double-Count Risk)
-    Found 569 PO lines with both OPEN_ORDER and RECEIPT rows - potential double-counting risk
+    Found 773 PO lines with both OPEN_ORDER and RECEIPT rows - potential double-counting risk
     Samples:
       - EPICOR PO 128626/12.0: ['Open Orders', 'Receipts']
       - EPICOR PO 128887/7.0: ['Open Orders', 'Receipts']
       - EPICOR PO 129920/2.0: ['Open Orders', 'Receipts']
 
 [FAIL (WARNING)] High Unit Cost (>$50K)
-    Found 1989 rows with unit_cost > $50,000 - verify these are legitimate
+    Found 2000 rows with unit_cost > $50,000 - verify these are legitimate
     Samples:
-      - PO P-BL0000771/1.0: unit_cost=$382,512.00
-      - PO P-BL0000792/1.0: unit_cost=$108,085.00
-      - PO P-BL0000759/1.0: unit_cost=$272,727.00
+      - PO P-AE0000003/1.0: unit_cost=$65,000.00
+      - PO P-AE0000007/1.0: unit_cost=$99,401.00
+      - PO P-AE0000007/2.0: unit_cost=$92,335.00
 
 [PASS] Unit Cost Corrections Applied
-    Applied 152 unit_cost corrections (1000x mills-to-dollars). Dollar impact: $0.00
+    Applied 154 unit_cost corrections (1000x mills-to-dollars). Dollar impact: $4,549,186.26
     Samples:
-      - PO 121441: $5,748.74 -> $5.75
-      - PO 121442: $5,748.74 -> $5.75
-      - PO 121497: $5,748.74 -> $5.75
+      - PO 136212: $4,553.74 -> $4.55
+      - PO 123848: $4,125.37 -> $4.13
+      - PO 123848: $2,651.69 -> $2.65
 
-[FAIL (WARNING)] Reporting Date Coverage
-    NETSUITE: Data starts 14 days after 2024-01-01 (2024-01-15)
-    Samples:
-      - NETSUITE: Data starts 14 days after 2024-01-01 (2024-01-15)
+[PASS] Reporting Date Coverage
+    Both systems have coverage from 2024-01-01
 
 ======================================================================
-RESULT: PASSED WITH WARNINGS - 5 warning(s)
+RESULT: PASSED WITH WARNINGS - 4 warning(s)
 ======================================================================
